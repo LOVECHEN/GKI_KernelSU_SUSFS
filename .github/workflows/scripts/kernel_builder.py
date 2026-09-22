@@ -299,6 +299,16 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
             if patch_file.exists():
                 self._chdir(common_dir)
                 self._run_cmd(f"patch -p1 --fuzz=3 < {patch_file}", check=False)
+                # 兼容修复: susfs4ksu (2026-09 起) 在 fs/exec.c 里调用了
+                # ksu_handle_post_execveat_sucompat —— 这是官方 KernelSU/Next 的 fd 风格 hook,
+                # 而 SukiSU-Ultra 只提供 pt_regs 签名的 ksu_handle_execveat_sucompat、并无该 post 变体,
+                # 直接链接会报 undefined symbol: ksu_handle_post_execveat_sucompat (vmlinux 失败)。
+                # 把这一处调用中和为空语句即可(is_su_session 仍在别处使用, 不产生 unused 告警),
+                # 保持 susfs 最新、仅去掉这一处与 SukiSU 内核不兼容的 hook。
+                self._run_cmd(
+                    "sed -i 's@(void)ksu_handle_post_execveat_sucompat([^;]*);@;@' fs/exec.c",
+                    check=False,
+                )
                 self._chdir(self.work_dir)
 
     def apply_sukisu_patches(self):
