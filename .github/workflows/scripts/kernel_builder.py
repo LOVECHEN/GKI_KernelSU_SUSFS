@@ -340,6 +340,17 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
     def apply_task_mmu_fixes(self):
         logger.info("=== 应用 task_mmu.c 修复 ===")
         self._chdir(self.work_dir / "common")
+
+        # 关掉内核 -Werror: 当把 SukiSU 核心 pin 到非-main-HEAD 的 commit 时,
+        # susfs/task_mmu 补丁里的 dentry 变量、bypass 标签会因某些 CONFIG 路径未走到而"未使用",
+        # 被 -Werror(unused-variable/unused-label) 判为错误、导致 fs/proc/task_mmu.o 编译失败。
+        # 这些是条件编译带来的良性未使用告警; 关掉 WERROR 让它们退回普通告警即可正常编译。
+        # 对默认(main HEAD)构建无害: 只是告警不再当错误。
+        defconfig = self.work_dir / "common/arch/arm64/configs/gki_defconfig"
+        if defconfig.exists():
+            with open(defconfig, "a") as f:
+                f.write("CONFIG_WERROR=n\n")
+
         task_mmu = Path("fs/proc/task_mmu.c")
         if not task_mmu.exists():
             return
