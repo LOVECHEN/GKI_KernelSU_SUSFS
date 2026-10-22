@@ -45,7 +45,10 @@ runs:
 
         KMI=""
         if [ "$KEEP_KMI" = "true" ]; then
-          KMI=$(grep -h "^KMI_GENERATION" build.config.common build.config.constants 2>/dev/null | head -n 1 | cut -d= -f2)
+          # Older GKI trees do not define KMI_GENERATION. Under the caller's
+          # pipefail shell, a plain grep pipeline would abort before reaching
+          # the intended legacy-branding fallback.
+          KMI=$({ grep -h "^KMI_GENERATION" build.config.common build.config.constants 2>/dev/null || true; } | head -n 1 | cut -d= -f2)
           if [ -z "$KMI" ]; then
             echo "WARNING: KMI_GENERATION not found, falling back to legacy branding"
           fi
