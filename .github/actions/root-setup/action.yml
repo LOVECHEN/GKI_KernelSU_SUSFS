@@ -118,6 +118,15 @@ runs:
         config_list: |
           CONFIG_KSU=y
 
+    - name: Adapt SukiSU-Ultra to target kernel APIs
+      if: inputs.flavor == 'sukisu-ultra'
+      shell: bash
+      working-directory: ${{ github.workspace }}/kernel
+      run: |
+        set -euo pipefail
+        python3 "${{ github.action_path }}/fix_sukisu_kernel_apis.py" \
+          common SukiSU-Ultra/kernel
+
     - name: Soften KernelSU-Next Kbuild config guard for mrproper
       if: inputs.flavor == 'next'
       shell: bash
