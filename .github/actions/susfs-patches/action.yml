@@ -162,7 +162,27 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}/kernel/common
       run: |
-        patch -p1 < 50_add_susfs_in_gki-${{ inputs.version }}.patch
+        PATCH_FILE="50_add_susfs_in_gki-${{ inputs.version }}.patch"
+        if ! patch -p1 < "$PATCH_FILE"; then
+          # android16-6.12 sublevel 74 still uses the legacy
+          # show_smaps_rollup loop. The current SUSFS patch targets its newer
+          # replacement, so handle only those two known hunks explicitly.
+          mapfile -t REJECTS < <(find . -type f -name '*.rej')
+          TASK_MMU_REJECT="./fs/proc/task_mmu.c.rej"
+          if [[ "${{ inputs.version }}" == "android16-6.12" \
+                && "${#REJECTS[@]}" -eq 1 \
+                && "${REJECTS[0]}" == "$TASK_MMU_REJECT" \
+                && "$(grep -c 'goto bypass_orig_flow' "$TASK_MMU_REJECT")" -eq 1 \
+                && "$(grep -c '^+bypass_orig_flow:' "$TASK_MMU_REJECT")" -eq 1 ]]; then
+            python3 "${{ github.action_path }}/fix_612_legacy_rollup.py" fs/proc/task_mmu.c
+            rm -f "$TASK_MMU_REJECT"
+            echo "Applied SUSFS compatibility for the legacy 6.12 smaps rollup loop."
+          else
+            echo "ERROR: SUSFS patch produced an unknown reject set:" >&2
+            printf '  %s\n' "${REJECTS[@]}" >&2
+            exit 1
+          fi
+        fi
 
         # SUSFS's OPEN_REDIRECT code unconditionally calls VMA_PAD_START(), which
         # only exists on GKI branches that carry Google's page-size-migration
