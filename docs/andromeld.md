@@ -86,16 +86,40 @@ The earlier run `39840787113` produced `6.12.74-android16-6-AndroMeld` with
 SukiSU Ultra `41050-6`, but it used the generic `6.12.18` build config. Root
 worked while the Android display wake path did not: launching an app left the
 runtime asleep. That artifact is retained only as a diagnosis record and must
-not be installed. A valid result must satisfy all of these checks:
+not be installed. Run `39870151831` rebuilt the same pinned source with the
+exact AndroMeld stock config and is the runtime-tested artifact. Its kernel
+`Image` SHA-256 is
+`7555dd3953da848e85ee6535206d64fd38060635eff96aaab5f8654b5cdd45b4`.
+A valid result must satisfy all of these checks:
 
 - SukiSU reports `Built-in / Working`.
-- ADB reports `uid=0(root)` and SELinux context `u:r:ksu:s0`.
+- ADB reports `uid=2000(shell)` and SELinux context `u:r:shell:s0` during normal use.
 - `/proc/modules` contains no `kernelsu` entry.
 - An installed Android app opens visibly after the runtime has gone idle.
 
+Do not enable SukiSU's `adb_root` feature for normal AndroMeld use. AndroMeld
+uses the same ADB transport for its internal helper and Fusion windows. With
+`adb_root` enabled, the helper runs as `u:r:ksu:s0`; the wake request is then
+immediately followed by `interactive_false`, so Android apps appear blank,
+asleep, or stuck at “preparing display”. This is independent of whether Zygisk
+Next and LSPosed are installed.
+
+If `adb_root` was enabled for maintenance, disable and persist it before the
+final runtime restart:
+
+```bash
+/data/adb/ksud feature set adb_root 0
+/data/adb/ksud feature save
+```
+
+The tested final state is SukiSU `Built-in / Working`, Zygisk Next `1.5.2`,
+LSPosed `2.2.1 / Activated`, and an ordinary ADB shell. Both MT Manager and the
+standalone LSPosed manager were opened successfully through Fusion Host after
+the feature was disabled.
+
 ## Build One Current LTS Kernel for Every Family
 
-Use `kernel_build_version=All` together with `os_patch_level=lts`. Every family config contains exactly one `lts` row, so this produces seven kernel jobs rather than every historical monthly row. Select `SukiSU-Ultra` explicitly; selecting `No Root` deliberately omits the root implementation, while the root-flavor `All` choice builds three different root implementations per target.
+Use `kernel_build_version=All` together with `os_patch_level=lts`. Every family config contains exactly one `lts` row, so this produces seven kernel jobs rather than every historical monthly row. Select `SukiSU-Ultra` explicitly; selecting `No Root` deliberately omits the root implementation, while `All (KernelSU-Next + KernelSU + BakaSU)` builds those three root implementations per target.
 
 Use `Pre-Release` when the artifacts should remain available as a GitHub prerelease instead of only as expiring Actions artifacts:
 
