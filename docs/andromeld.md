@@ -13,7 +13,7 @@ This fork contains a pinned target for the current AndroMeld Android runtime:
 
 The `source_commit` field in `.github/config/android16-6.12.json` is passed through the matrix and checked out after the Android manifest sync. The build therefore uses the exact `kernel/common` source commit instead of the moving monthly branch tip.
 
-## Build Latest SukiSU Ultra
+## Build the Validated Minimal SukiSU Ultra Kernel
 
 Run the `Build Kernels` workflow with these inputs:
 
@@ -29,10 +29,10 @@ Run the `Build Kernels` workflow with these inputs:
 | Keep KMI suffix | `true` |
 | Commit mode | `latest` |
 | Root Flavor | `SukiSU-Ultra` |
-| SUSFS | `true` |
-| NoMount | `true` |
+| SUSFS | `false` |
+| NoMount | `false` |
 
-The remaining optional feature toggles can stay disabled for the first AndroMeld build. `allow_version_mismatch` is enabled because the runtime ships external modules built for its stock release string.
+Keep every remaining optional feature toggle disabled for the first AndroMeld build. This is the configuration that booted successfully in the AndroMeld runtime; add SUSFS, NoMount, and other patch sets only in separate follow-up builds. `allow_version_mismatch` is enabled because the runtime ships external modules built for its stock release string.
 
 Equivalent GitHub CLI command:
 
@@ -50,8 +50,8 @@ gh workflow run main.yml \
   -f keep_kmi=true \
   -f commit_mode=latest \
   -f root_flavor=SukiSU-Ultra \
-  -f use_susfs=true \
-  -f use_nomount=true \
+  -f use_susfs=false \
+  -f use_nomount=false \
   -f use_bbg=false \
   -f use_net=false \
   -f use_ds=false \
@@ -62,6 +62,55 @@ gh workflow run main.yml \
   -f use_perf=false \
   -f test_release_notes=false
 ```
+
+The validated run produced `6.12.74-android16-6-AndroMeld` with SukiSU Ultra `41050-6`. The manager reports `Built-in / Working`, ADB runs as `uid=0(root)` with SELinux context `u:r:ksu:s0`, and `/proc/modules` contains no `kernelsu` entry. Those observations distinguish this kernel from both an LKM installation and the workflow's `No Root` flavor.
+
+## Build One Current LTS Kernel for Every Family
+
+Use `kernel_build_version=All` together with `os_patch_level=lts`. Every family config contains exactly one `lts` row, so this produces seven kernel jobs rather than every historical monthly row. Select `SukiSU-Ultra` explicitly; selecting `No Root` deliberately omits the root implementation, while the root-flavor `All` choice builds three different root implementations per target.
+
+Use `Pre-Release` when the artifacts should remain available as a GitHub prerelease instead of only as expiring Actions artifacts:
+
+```bash
+gh workflow run main.yml \
+  -R LOVECHEN/GKI_KernelSU_SUSFS \
+  --ref main \
+  -f release_type=Pre-Release \
+  -f use_cache=true \
+  -f allow_version_mismatch=true \
+  -f kernel_build_version=All \
+  -f os_patch_level=lts \
+  -f page_size=4k \
+  -f brand_name=AndroMeld \
+  -f keep_kmi=true \
+  -f commit_mode=latest \
+  -f root_flavor=SukiSU-Ultra \
+  -f use_susfs=false \
+  -f use_nomount=false \
+  -f use_bbg=false \
+  -f use_net=false \
+  -f use_ds=false \
+  -f use_ntsync=false \
+  -f use_ptrace=false \
+  -f use_unicode=false \
+  -f use_bpf=false \
+  -f use_perf=false \
+  -f test_release_notes=false
+```
+
+The expected families are:
+
+| Android common family | Linux series |
+| --- | --- |
+| `android12-5.10` | 5.10 |
+| `android13-5.10` | 5.10 |
+| `android13-5.15` | 5.15 |
+| `android14-5.15` | 5.15 |
+| `android14-6.1` | 6.1 |
+| `android15-6.6` | 6.6 |
+| `android16-6.12` | 6.12 |
+
+The `lts` row follows the current LTS branch tip, so the resolved numeric sublevel is recorded by the completed run and may increase on a later dispatch.
 
 Keep these outputs from the completed run:
 
