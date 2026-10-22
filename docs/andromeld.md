@@ -49,6 +49,10 @@ The workflow creates an empty source-tree placeholder for this file. This keeps
 the stock config and module ABI intact; the AndroMeld build does not compile or
 ship external kernel modules from this list.
 
+Device-compatible targets use the repository's deterministic directory cleanup
+instead of the third-party apt-based free-space action. The latter can stall on
+runner-image package changes before the kernel source is even downloaded.
+
 Equivalent GitHub CLI command:
 
 ```bash

@@ -141,11 +141,11 @@ jobs:
           esac
 
       - name: Emergency Disk Cleanup
-        if: false
+        if: inputs.build_from_stock_config
         uses: ./.github/actions/disk-cleanup
 
       - name: Free Disk Space
-        if: true
+        if: ${{ !inputs.build_from_stock_config }}
         uses: endersonmenezes/free-disk-space@v4 # Use @main for latest, @v3 for stable
         with:
           remove_android: true
