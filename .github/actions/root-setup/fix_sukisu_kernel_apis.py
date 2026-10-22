@@ -32,23 +32,36 @@ lsm_header = (kernel / "include/linux/lsm_hooks.h").read_text()
 lsm_hook_path = sukisu / "hook/lsm_hook.c"
 lsm_hook = lsm_hook_path.read_text()
 if "const struct lsm_id *lsmid" in lsm_header:
-    lsm_hook = replace_once(
-        lsm_hook,
-        "static struct security_hook_list ksu_hooks[] = {\n",
-        """static const struct lsm_id ksu_lsmid = {
+    legacy_hooks = "static struct security_hook_list ksu_hooks[] = {\n"
+    legacy_registration = (
+        'security_add_hooks(ksu_hooks, ARRAY_SIZE(ksu_hooks), "ksu");'
+    )
+    if legacy_hooks in lsm_hook:
+        lsm_hook = replace_once(
+            lsm_hook,
+            legacy_hooks,
+            """static const struct lsm_id ksu_lsmid = {
     .name = "ksu",
     .id = LSM_ID_UNDEF,
 };
 
 static struct security_hook_list ksu_hooks[] = {
 """,
-        "KernelSU LSM identity declaration",
-    )
-    lsm_hook = replace_once(
-        lsm_hook,
-        'security_add_hooks(ksu_hooks, ARRAY_SIZE(ksu_hooks), "ksu");',
-        "security_add_hooks(ksu_hooks, ARRAY_SIZE(ksu_hooks), &ksu_lsmid);",
-        "security_add_hooks lsm_id argument",
-    )
-    lsm_hook_path.write_text(lsm_hook)
-    print("Adapted security_add_hooks to the struct lsm_id API")
+            "KernelSU LSM identity declaration",
+        )
+        lsm_hook = replace_once(
+            lsm_hook,
+            legacy_registration,
+            "security_add_hooks(ksu_hooks, ARRAY_SIZE(ksu_hooks), &ksu_lsmid);",
+            "security_add_hooks lsm_id argument",
+        )
+        lsm_hook_path.write_text(lsm_hook)
+        print("Adapted security_add_hooks to the struct lsm_id API")
+    elif "security_add_hooks(" not in lsm_hook:
+        # Current SukiSU patches LSM slots at runtime and no longer registers a
+        # static hook array, so the target kernel's registration API is unused.
+        print("SukiSU uses runtime LSM slot patching; no lsm_id adaptation needed")
+    else:
+        raise RuntimeError(
+            "Unknown SukiSU LSM registration layout for the struct lsm_id API"
+        )
