@@ -22,6 +22,14 @@ inputs:
     description: 'Directory with prefetched stock_<kver>[_16k].config files (empty = auto-fetch)'
     required: false
     default: ''
+  stock_config_path:
+    description: 'Repository-relative device stock config; takes priority when set'
+    required: false
+    default: ''
+  build_from_stock_config:
+    description: 'Also replace gki_defconfig with the selected stock config'
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -32,6 +40,8 @@ runs:
         VERSION: ${{ inputs.version }}
         PAGE_SIZE: ${{ inputs.page_size }}
         STOCK_CONFIG_DIR: ${{ inputs.stock_config_dir }}
+        STOCK_CONFIG_PATH: ${{ inputs.stock_config_path }}
+        BUILD_FROM_STOCK_CONFIG: ${{ inputs.build_from_stock_config }}
       run: |
         set -uo pipefail
         WORKSPACE="${{ github.workspace }}"
@@ -58,7 +68,16 @@ runs:
         #    config, same format /proc/config.gz serves).
         SUFFIX=""
         [ "$PAGE_SIZE" = "16k" ] && SUFFIX="_16k"
-        if [ -f "$WORKSPACE/config/stock_defconfig" ]; then
+        if [ -n "$STOCK_CONFIG_PATH" ]; then
+          case "$STOCK_CONFIG_PATH" in
+            /*|*../*) skip "stock_config_path must stay inside the repository" ;;
+          esac
+          [ -f "$WORKSPACE/$STOCK_CONFIG_PATH" ] \
+            || skip "requested stock config does not exist: $STOCK_CONFIG_PATH"
+          echo "[+] Using target stock config: $STOCK_CONFIG_PATH"
+          cp "$WORKSPACE/$STOCK_CONFIG_PATH" "$STOCK" \
+            || skip "could not read target stock config"
+        elif [ -f "$WORKSPACE/config/stock_defconfig" ]; then
           echo "[+] Using committed config/stock_defconfig"
           cp "$WORKSPACE/config/stock_defconfig" "$STOCK" || skip "could not read committed config/stock_defconfig"
         elif [ -n "$STOCK_CONFIG_DIR" ] && [ -f "$STOCK_CONFIG_DIR/stock_${KVER}${SUFFIX}.config" ]; then
@@ -104,6 +123,17 @@ runs:
         #    stock config instead of $(KCONFIG_CONFIG).
         mkdir -p "$COMMON/arch/arm64/configs" || skip "kernel tree missing at $COMMON"
         cp "$STOCK" "$COMMON/arch/arm64/configs/stock_defconfig" || skip "could not install stock_defconfig"
+
+        # Device targets such as AndroMeld need the vendor's exact resolved
+        # config for the actual kernel too. Root setup runs after this action
+        # and adds only its required CONFIG_KSU options to gki_defconfig.
+        if [ "$BUILD_FROM_STOCK_CONFIG" = "true" ]; then
+          cp "$STOCK" "$COMMON/arch/arm64/configs/gki_defconfig" \
+            || skip "could not install stock config as gki_defconfig"
+          cmp -s "$STOCK" "$COMMON/arch/arm64/configs/gki_defconfig" \
+            || skip "gki_defconfig differs immediately after installation"
+          echo "[+] Actual build will start from the target stock config"
+        fi
 
         MK="$COMMON/kernel/Makefile"
         [ -f "$MK" ] || skip "$MK not found"

@@ -24,7 +24,9 @@
     {
       "sublevel": "74",
       "date": "2026-03",
-      "source_commit": "3ec022196c4e9d5c1434599cdda63f622dd6f586"
+      "source_commit": "3ec022196c4e9d5c1434599cdda63f622dd6f586",
+      "stock_config_path": "config/andromeld-6.12.74-stock.config",
+      "build_from_stock_config": true
     },
     {
       "sublevel": "81",

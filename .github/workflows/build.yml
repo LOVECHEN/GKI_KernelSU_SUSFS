@@ -26,6 +26,16 @@ on:
         required: false
         type: string
         default: ""
+      stock_config_path:
+        description: "Repository-relative stock config for an exact device-compatible target"
+        required: false
+        type: string
+        default: ""
+      build_from_stock_config:
+        description: "Use stock_config_path as the real kernel build defconfig"
+        required: false
+        type: boolean
+        default: false
       variant:
         required: false
         type: string
@@ -178,6 +188,8 @@ jobs:
           version: ${{ inputs.version }}
           page_size: ${{ inputs.page_size }}
           stock_config_dir: stock-configs
+          stock_config_path: ${{ inputs.stock_config_path }}
+          build_from_stock_config: ${{ inputs.build_from_stock_config }}
 
       - name: Set Build Timestamp from Kernel Commit
         shell: bash

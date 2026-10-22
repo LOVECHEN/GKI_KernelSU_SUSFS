@@ -133,6 +133,8 @@ jobs:
                       sublevel: $item.sublevel,
                       os_patch_level: $item.date,
                       source_commit: ($item.source_commit // ""),
+                      stock_config_path: ($item.stock_config_path // ""),
+                      build_from_stock_config: ($item.build_from_stock_config // false),
                       variant: (if $requested_variant == "" then "Normal" else $requested_variant end)
                     }
                 ]
@@ -146,6 +148,8 @@ jobs:
                         sublevel: $item.sublevel,
                         os_patch_level: $item.date,
                         source_commit: ($item.source_commit // ""),
+                        stock_config_path: ($item.stock_config_path // ""),
+                        build_from_stock_config: ($item.build_from_stock_config // false),
                         variant: $item.variant
                       }
                   ] else [] end)
@@ -330,6 +334,8 @@ jobs:
       sublevel: ${{ matrix.sublevel }}
       os_patch_level: ${{ matrix.os_patch_level }}
       kernel_source_commit: ${{ matrix.source_commit }}
+      stock_config_path: ${{ matrix.stock_config_path }}
+      build_from_stock_config: ${{ matrix.build_from_stock_config }}
       variant: ${{ matrix.variant }}
       feature_set: ${{ inputs.feature_set }}
       ksu_branch: ${{ inputs.ksu_branch }}

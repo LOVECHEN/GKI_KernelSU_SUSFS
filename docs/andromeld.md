@@ -13,7 +13,7 @@ This fork contains a pinned target for the current AndroMeld Android runtime:
 
 The `source_commit` field in `.github/config/android16-6.12.json` is passed through the matrix and checked out after the Android manifest sync. The build therefore uses the exact `kernel/common` source commit instead of the moving monthly branch tip.
 
-## Build the Validated Minimal SukiSU Ultra Kernel
+## Build the Device-Compatible Minimal SukiSU Ultra Kernel
 
 Run the `Build Kernels` workflow with these inputs:
 
@@ -32,7 +32,16 @@ Run the `Build Kernels` workflow with these inputs:
 | SUSFS | `false` |
 | NoMount | `false` |
 
-Keep every remaining optional feature toggle disabled for the first AndroMeld build. This is the configuration that booted successfully in the AndroMeld runtime; add SUSFS, NoMount, and other patch sets only in separate follow-up builds. `allow_version_mismatch` is enabled because the runtime ships external modules built for its stock release string.
+Keep every remaining optional feature toggle disabled for the first AndroMeld build. `allow_version_mismatch` is enabled because the runtime ships external modules built for its stock release string.
+
+The `2026-03` target is device-specific. Its matrix row selects
+`config/andromeld-6.12.74-stock.config`, extracted from the original AndroMeld
+kernel (`sha256:4c065ae7247d878dc34438e61230fb4c3e4a9ce286cd585bf49db03dd7e69726`).
+The workflow installs this file as the real `gki_defconfig` before adding the
+SukiSU configuration. It also embeds the untouched copy for `/proc/config.gz`.
+Do not replace it with the latest generic `kernel-6.12-gz` config: that config
+belongs to a different GKI rollup and changes hundreds of scheduler, power,
+display, and Android options.
 
 Equivalent GitHub CLI command:
 
@@ -63,7 +72,16 @@ gh workflow run main.yml \
   -f test_release_notes=false
 ```
 
-The validated run produced `6.12.74-android16-6-AndroMeld` with SukiSU Ultra `41050-6`. The manager reports `Built-in / Working`, ADB runs as `uid=0(root)` with SELinux context `u:r:ksu:s0`, and `/proc/modules` contains no `kernelsu` entry. Those observations distinguish this kernel from both an LKM installation and the workflow's `No Root` flavor.
+The earlier run `39840787113` produced `6.12.74-android16-6-AndroMeld` with
+SukiSU Ultra `41050-6`, but it used the generic `6.12.18` build config. Root
+worked while the Android display wake path did not: launching an app left the
+runtime asleep. That artifact is retained only as a diagnosis record and must
+not be installed. A valid result must satisfy all of these checks:
+
+- SukiSU reports `Built-in / Working`.
+- ADB reports `uid=0(root)` and SELinux context `u:r:ksu:s0`.
+- `/proc/modules` contains no `kernelsu` entry.
+- An installed Android app opens visibly after the runtime has gone idle.
 
 ## Build One Current LTS Kernel for Every Family
 
