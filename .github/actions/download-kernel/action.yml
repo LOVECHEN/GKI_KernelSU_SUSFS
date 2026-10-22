@@ -214,7 +214,7 @@ runs:
           exit 1
         fi
 
-        git fetch --depth=1 origin "$SOURCE_COMMIT"
+        git fetch --depth=1 https://android.googlesource.com/kernel/common "$SOURCE_COMMIT"
         git checkout --detach FETCH_HEAD
 
         CHECKED_OUT_COMMIT="$(git rev-parse HEAD)"
