@@ -43,6 +43,12 @@ Do not replace it with the latest generic `kernel-6.12-gz` config: that config
 belongs to a different GKI rollup and changes hundreds of scheduler, power,
 display, and Android options.
 
+The stock config references `protected_module_names_list`, an input supplied by
+Google's production build environment but absent from the public source commit.
+The workflow creates an empty source-tree placeholder for this file. This keeps
+the stock config and module ABI intact; the AndroMeld build does not compile or
+ship external kernel modules from this list.
+
 Equivalent GitHub CLI command:
 
 ```bash

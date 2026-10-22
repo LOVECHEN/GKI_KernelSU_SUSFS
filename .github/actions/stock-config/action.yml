@@ -133,6 +133,23 @@ runs:
           cmp -s "$STOCK" "$COMMON/arch/arm64/configs/gki_defconfig" \
             || skip "gki_defconfig differs immediately after installation"
           echo "[+] Actual build will start from the target stock config"
+
+          # Google's production config may name an external protected-module
+          # list that is supplied by the private release build environment,
+          # not stored in kernel/common. Kbuild still requires the path even
+          # when no external modules are compiled. Provide an empty source-tree
+          # placeholder rather than changing the device's config or ABI.
+          PROTECT_LIST="$(sed -n 's/^CONFIG_MODULE_SIG_PROTECT_LIST="\([^"]*\)"/\1/p' "$STOCK")"
+          if [ -n "$PROTECT_LIST" ]; then
+            case "$PROTECT_LIST" in
+              /*|*../*) skip "unsafe CONFIG_MODULE_SIG_PROTECT_LIST path: $PROTECT_LIST" ;;
+            esac
+            if [ ! -e "$COMMON/$PROTECT_LIST" ]; then
+              : > "$COMMON/$PROTECT_LIST" \
+                || skip "could not create protected-module list placeholder"
+              echo "[+] Created empty external module-protection list: $PROTECT_LIST"
+            fi
+          fi
         fi
 
         MK="$COMMON/kernel/Makefile"
