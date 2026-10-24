@@ -1239,6 +1239,54 @@ void put_seccomp_filter(struct task_struct *tsk);
 ''',
         "Linux 4.19 seccomp release implementation",
     )
+    kpm = checkout / "kernel/extension/kpm/kpm.c"
+    replace_once(
+        kpm,
+        '''#define KPM_NAME_LEN 32
+#define KPM_ARGS_LEN 1024
+''',
+        '''#define KPM_NAME_LEN 32
+#define KPM_ARGS_LEN 1024
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+#define ksu_access_ok_read(addr, size) access_ok(VERIFY_READ, (const void __user *)(addr), (size))
+#define ksu_access_ok_write(addr, size) access_ok(VERIFY_WRITE, (void __user *)(addr), (size))
+#else
+#define ksu_access_ok_read(addr, size) access_ok((const void __user *)(addr), (size))
+#define ksu_access_ok_write(addr, size) access_ok((void __user *)(addr), (size))
+#endif
+''',
+        "Linux 4.19 KPM user-pointer validation",
+    )
+    kpm_content = kpm.read_text(encoding="utf-8")
+    repeated_access = "access_ok(arg1, sizeof(s->kernel_name_buffer))"
+    if kpm_content.count(repeated_access) != 2:
+        raise RuntimeError("Linux 4.19 KPM name-buffer checks changed upstream")
+    kpm.write_text(
+        kpm_content.replace(repeated_access, "ksu_access_ok_read(arg1, sizeof(s->kernel_name_buffer))"),
+        encoding="utf-8",
+    )
+    for old, new in [
+        ("access_ok(arg1, 255)", "ksu_access_ok_read(arg1, 255)"),
+        ("access_ok(arg2, 255)", "ksu_access_ok_read(arg2, 255)"),
+        ("access_ok(arg2, size)", "ksu_access_ok_write(arg2, size)"),
+        ("access_ok(arg2, len)", "ksu_access_ok_write(arg1, len)"),
+        ("access_ok(arg1, sizeof(s->kpm_name))", "ksu_access_ok_read(arg1, sizeof(s->kpm_name))"),
+        ("access_ok(arg2, sizeof(s->kpm_args))", "ksu_access_ok_read(arg2, sizeof(s->kpm_args))"),
+        ("access_ok(cmd.result_code, sizeof(int))", "ksu_access_ok_write(cmd.result_code, sizeof(int))"),
+    ]:
+        replace_once(kpm, old, new, f"Linux 4.19 KPM access check: {old}")
+    replace_once(
+        kpm,
+        '''    if (!access_ok(cmd.control_code, sizeof(int))) {
+        pr_err("kpm: invalid control_code pointer %px\\n",
+               (void *)cmd.control_code);
+        return -EFAULT;
+    }
+''',
+        "",
+        "KPM numeric control code validation",
+    )
     pkg_observer = checkout / "kernel/manager/pkg_observer.c"
     replace_once(
         pkg_observer,

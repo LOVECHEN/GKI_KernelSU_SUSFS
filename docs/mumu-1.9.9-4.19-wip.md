@@ -213,6 +213,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 这 3 个都是后续内核重构后的新名字：4.19 对应功能分别由 `do_mount`、`ksys_umount`、`put_seccomp_filter` 提供。
 - `<5.9` 的 mount/unmount 分支改用旧 API，并因旧 API 参数仍标记为 userspace pointer，仅在调用期间用 `KERNEL_DS` 传入内核路径字符串；`<5.11` 释放 seccomp filter 时调用 `put_seccomp_filter()`。
 
+### 第二十二轮：`40117108210`
+
+- LKM 已完整成功：`kernelsu.ko` 链接完成，247 个待手工重定位符号全部存在于同轮 `vmlinux`。
+- 第二套内置 KPM 构建已确认 `CONFIG_KPM=y` 且进入 `extension/kpm/kpm.c`，失败仅因 4.19 的 `access_ok` 仍是三参数形式。
+- `<5.0` 分支分别用 `VERIFY_READ`/`VERIFY_WRITE` 包装用户指针检查；同时修正 r2 KPM ABI 中将数值 `control_code` 误当指针检查、`LIST` 写 `arg1` 却检查 `arg2` 的两处运行时错误。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
