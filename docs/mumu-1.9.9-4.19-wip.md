@@ -107,6 +107,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 4.19 提供语义相同的旧名称 `strncpy_from_unsafe_user`；对 r2 源码中 3 个文件的 5 处调用统一做严格计数替换。
 - 显式 cache 流程验证成功：在 job 标记失败前保存了约 408.7 MB、3904 个可缓存对象，后续 Actions run 可直接复用。
 
+### 第五轮：`40102688899`
+
+- compiler cache 恢复成功，3923/4161 个可缓存调用命中，命中率 `94.28%`，运行时间从 22 分钟降至约 8 分钟。
+- 5 处 nofault user-copy 名称回退均已通过，唯一新错误是 arm64 `patch_memory.c` 使用 4.19 不存在的 `copy_to_kernel_nofault`。
+- MuMu 4.19 提供并以 GPL 导出了语义相同的旧接口 `probe_kernel_write`，因此只对 arm64 目标做严格单点替换。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

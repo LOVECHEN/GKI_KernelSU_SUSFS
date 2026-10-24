@@ -265,6 +265,12 @@ __attribute__((no_stack_protector)) int __init kernelsu_init_early(void)
             content.replace("strncpy_from_user_nofault", "strncpy_from_unsafe_user"),
             encoding="utf-8",
         )
+    replace_once(
+        checkout / "kernel/hook/arm64/patch_memory.c",
+        "copy_to_kernel_nofault(map, src, len)",
+        "probe_kernel_write(map, src, len)",
+        "Linux 4.19 nofault kernel write",
+    )
 
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))
