@@ -1,166 +1,113 @@
-# MuMuPlayer 1.9.9 / Linux 4.19.195 SukiSU WIP
+# MuMuPlayer 1.9.9 / Linux 4.19.195 SukiSU 构建记录（WIP）
 
-This document records the local prototype state before the build is promoted to
-GitHub Actions. It is intentionally not part of the generic 5.10+ GKI matrix.
+本文记录 MuMuPlayer 1.9.9 私有 `4.19.195` 内核接入 SukiSU Ultra、LKM 与 KPM 的当前状态。MuMu 是修改过私有 ABI 的非 GKI 内核，不能伪装成 Android 12 / 5.10 的通用 GKI 矩阵项。
 
-## Target
+## 构建原则
 
-- Guest: MuMuPlayer 1.9.9 arm64.
-- Kernel: `4.19.195-android-arm64-gedae1315d023`.
-- Android common base: merge commit `f931d3c324845b1be4337d27b565351fb581f206`
-  (`Merge 4.19.195 into android-4.19-stable`).
-- MuMu source snapshot: `LOVECHEN/mumu-neutralize` commit
-  `19380722db94c5b7d0a1a27304d12e69ad5629f3`.
-- SukiSU stable build: `v4.2.1-r2`, commit
-  `d6b36700f3bd0a4c1585549b470dd30bb8774534`.
-- KernelPatch reference: `SukiSU-Ultra/SukiSU_KernelPatch_patch` commit
-  `e60c6cfd5cea87cccf9adb7e4d4ba583702d443c`.
-- KPM template reference: `liankong233/KPM-Build-Anywhere` commit
-  `e26d77c8d6d38abcf7340a16a9b809660b9e78f4`.
+- 所有实际内核编译均由 GitHub Actions 执行，本机不编译内核。
+- 本机只允许编辑构建脚本、做静态检查、读取 Actions 日志和核对提交/SHA256。
+- 专用入口为 `.github/workflows/mumu-1.9.9-4.19.yml`，在 GitHub Actions 中手动运行 `MuMu 1.9.9 Linux 4.19.195`。
+- `target=all` 默认依次构建 LKM 与内置 KPM Image；也可用 `lkm` 或 `image` 单独构建。
+- 私有 MuMu 源码通过只读 deploy key `MUMU_SOURCE_SSH_KEY` clone，不依赖 GitHub fork 关系，也不会被上游仓库删除操作同步移除。
+- 每个外部输入固定到完整 commit，MuMu config 与重建的 `sched.h` 还会执行 SHA256 校验，避免上游移动导致不可复现。
 
-## Upstream references
+## 固定版本
 
-- SukiSU KernelPatch/KPM layer:
-  <https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch>
-- KPM standalone build template:
-  <https://github.com/liankong233/KPM-Build-Anywhere>
-- SukiSU Ultra root framework and kernel integration:
-  <https://github.com/SukiSU-Ultra/SukiSU-Ultra>
-- ShirkNeko GKI build-system reference and original fork parent:
-  <https://github.com/ShirkNeko/GKI_KernelSU_SUSFS>
-- WildKernels source repository and pre-migration modular workflow reference:
-  <https://github.com/WildKernels/GKI_KernelSU_SUSFS>
+| 项目 | 固定版本 |
+| --- | --- |
+| Guest | MuMuPlayer 1.9.9 arm64 |
+| 内核 | `4.19.195-android-arm64-gedae1315d023` |
+| Android common 公共基线 | `60080b53629d749f14cf6981b1602de6c19dd46e` |
+| MuMu 私有源码 | `LOVECHEN/mumu-neutralize@19380722db94c5b7d0a1a27304d12e69ad5629f3` |
+| SukiSU Ultra | `v4.2.1-r2@d6b36700f3bd0a4c1585549b470dd30bb8774534`，管理器版本码 `41068` |
+| KernelPatch 参考 | `SukiSU-Ultra/SukiSU_KernelPatch_patch@e60c6cfd5cea87cccf9adb7e4d4ba583702d443c` |
+| KPM 模板参考 | `liankong233/KPM-Build-Anywhere@e26d77c8d6d38abcf7340a16a9b809660b9e78f4` |
 
-## Confirmed constraints
+Android common 的 `f931d3c324845b1be4337d27b565351fb581f206` 是合入 Linux 4.19.195 的 merge commit，但该点把 `ctx->rotate_necessary` 引用带回了 `kernel/events/core.c`，却没有恢复对应结构字段，直接编译会失败。其唯一直接后继 `60080b53` 的提交说明明确指出用于修复该 build breakage，因此构建固定在 `60080b53`，内核版本仍为 4.19.195。
 
-- Do not replace the MuMu kernel with Android 12 / 5.10 GKI. The 1.9.9 guest
-  baseline and private virtual-device ABI are Linux 4.19.195.
-- SukiSU documents manual builds for non-GKI and older kernels starting at
-  4.14. Its `main` Kconfig makes `CONFIG_KSU` tristate, so 4.19 can produce a
-  `kernelsu.ko`; official releases simply do not publish a 4.19 LKM.
-- Full KPM support is a separate built-in image target using
-  `CONFIG_KSU=y` and `CONFIG_KPM=y`.
-- MuMu already enables `CONFIG_KALLSYMS=y`, `CONFIG_KALLSYMS_ALL=y`,
-  `CONFIG_KPROBES=y`, `CONFIG_KRETPROBES=y`,
-  `CONFIG_HAVE_SYSCALL_TRACEPOINTS=y`, `CONFIG_EXT4_FS=y`, and
-  `CONFIG_MODULES=y`. It does not force module signatures or use modversions.
-- MuMu changes `task_struct`. A module built against a vanilla 4.19 header can
-  have incorrect field offsets even when its vermagic matches. The build must
-  consume MuMu's reconstructed `include/linux/sched.h` and exact config.
+## 上游与参考仓库
 
-## Intended artifacts
+- [SukiSU KernelPatch / KPM 层](https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch)
+- [KPM-Build-Anywhere](https://github.com/liankong233/KPM-Build-Anywhere)
+- [SukiSU Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra)
+- [ShirkNeko/GKI_KernelSU_SUSFS](https://github.com/ShirkNeko/GKI_KernelSU_SUSFS)
+- [WildKernels/GKI_KernelSU_SUSFS](https://github.com/WildKernels/GKI_KernelSU_SUSFS)
 
-1. `kernelsu.ko`: SukiSU LKM built against the exact MuMu 4.19 task ABI.
-2. `Image-sukisu-kpm`: MuMu's bootable 4.19.195 source image with
-   `CONFIG_KSU=y` and `CONFIG_KPM=y`.
-3. KernelPatch/KPM tooling: kept as an independent image-patching and KPM
-   development path. `KPM-Build-Anywhere` builds KPM payloads; it does not
-   integrate SukiSU by itself.
+## 目标产物
 
-The dedicated GitHub Actions entry is
-`.github/workflows/mumu-1.9.9-4.19.yml`. It checks out the private MuMu source
-at the pinned commit through the read-only `MUMU_SOURCE_SSH_KEY` deploy key,
-verifies the config and reconstructed `sched.h` SHA256 values, and builds both
-artifacts by default.
+1. `kernelsu-mumu-1.9.9-4.19.195-r2.ko`：使用 MuMu 精确 config、私有 `task_struct` ABI 和完整 overlay 构建的 SukiSU LKM，配置为 `CONFIG_KSU=m`、`CONFIG_KPM=n`。
+2. `Image-mumu-1.9.9-4.19.195-sukisu-r2-kpm`：内置 SukiSU 与 KPM 的 MuMu 4.19.195 Image，配置为 `CONFIG_KSU=y`、`CONFIG_KPM=y`。
+3. `SHA256SUMS.txt`：同一次 Actions 构建生成的产物校验值。
 
-## Local prototype
+`KPM-Build-Anywhere` 用于构建 KPM payload，不负责把 SukiSU 接入内核；KernelPatch/KPM 工具链仍作为独立的镜像补丁和模块开发路线保留。
 
-The disposable build state is in Docker volume `mumu-sukisu-lkm-199`. The
-toolchain image is `mumu-kbuild:bookworm-gcc12`. Both were created on
-2026-10-24 and remain subject to the seven-day scratch TTL.
+## MuMu 专用输入
 
-The prototype checked out Android common at `f931d3c3`, copied MuMu's exact
-config and reconstructed `sched.h`, integrated SukiSU as
-`drivers/kernelsu`, and selected:
+工作流从私有 MuMu 仓库覆盖以下内容，而不是只拿一个通用 4.19 config 编译：
 
-```text
-CONFIG_NEMU_ANTI_DETECT=y
-CONFIG_KSU=m
-# CONFIG_KPM is not set
-```
+- `linux-4.19.195.nemu.config`；
+- 重建的 `include/linux/sched.h`，其中包含 MuMu 私有 `task_struct` 字段；
+- `nemuctl`、`nemu_file_rule`、`virtual_module` 反检测实现；
+- `nemu-freq`、`mumu_power`、`pagecache_limit`；
+- MuMu 直接 SHA-256 实现；
+- 4.19 版 `xt_qtaguid`；
+- `alloc_etherdev` 的 `wlan0` 补丁。
 
-Kconfig and `modules_prepare` complete. Compiling current SukiSU `main`
-against 4.19 reaches the module objects but exposes upstream 4.19 compatibility
-regressions:
+MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y`、`CONFIG_KRETPROBES=y`、`CONFIG_HAVE_SYSCALL_TRACEPOINTS=y`、`CONFIG_EXT4_FS=y` 和 `CONFIG_MODULES=y`，并且未强制模块签名、未启用 modversions。非 GKI KPM 所需的 kallsyms 条件已经满足。
 
-- `MODULE_IMPORT_NS` is unavailable.
-- `copy_to_kernel_nofault` is unavailable on 4.19.
-- `linux/pgtable.h` and `uapi/linux/mount.h` are unavailable under those names.
-- `fsnotify_ops.handle_inode_event` uses a newer fsnotify API.
-- `SECCOMP_ARCH_NATIVE_NR` is unavailable.
-- SELinux generated headers must be produced before the external module build.
+## GitHub Actions 使用方式
 
-These are real compile results, not assumptions. Before writing compatibility
-patches, compare SukiSU tags and history to locate the newest release that still
-contains the older-kernel shims.
+1. 打开仓库的 Actions 页面。
+2. 选择 `MuMu 1.9.9 Linux 4.19.195`。
+3. 点击 `Run workflow`。
+4. `target` 选择 `all`，同时生成 LKM 与 KPM Image。
+5. 构建成功后下载 `mumu-1.9.9-linux-4.19.195-sukisu-r2-all` artifact。
 
-## Repository lineage
+对应工作流：`.github/workflows/mumu-1.9.9-4.19.yml`。
 
-The GitHub repository was originally registered as a fork of
-`ShirkNeko/GKI_KernelSU_SUSFS`, while its pre-migration code had evolved into a
-WildKernels-style modular Actions tree. The exact pre-migration head is retained
-on `backup/wildkernels-2026-10-24`, so changing the primary layout cannot lose
-that implementation.
+构建脚本：`.github/workflows/scripts/mumu_419_builder.py`。
 
-Commit `eb74629a` replaced the primary build-system files with ShirkNeko's
-compact Python layout. Subsequent commits port the private matrix features back
-into that model instead of restoring the large composite-action tree. Upstream
-repositories are tracked as ordinary read-only Git remotes (`upstream` and
-`wild`); updates are explicit fetch/merge/cherry-pick operations rather than
-GitHub's fork-sync mechanism.
+## 已确认约束
 
-This structure change does not make MuMu 4.19 a GKI target. MuMu still needs an
-isolated backend with its exact source, config and reconstructed header inputs;
-it must not be added as a fake Android 12 / 5.10 matrix row.
+- MuMu 1.9.9 的基线和虚拟设备私有 ABI 是 Linux 4.19.195，不能替换成 Android 12 / 5.10 GKI。
+- SukiSU 支持手动接入非 GKI 与旧内核；其 Kconfig 允许 `CONFIG_KSU=m`，因此 4.19 可以生成 `kernelsu.ko`。官方 release 未提供 4.19 LKM，不代表不能构建。
+- 完整 KPM 支持使用独立的内置 Image 目标，不能把 `CONFIG_KPM=y` 塞进纯 LKM 目标冒充支持。
+- MuMu 修改了 `task_struct`。即使 vermagic 一致，使用 vanilla 4.19 头文件构建的模块仍可能产生错误字段偏移，所以必须使用 MuMu 重建的 `sched.h` 和精确 config。
+- SukiSU r2 在 4.19 上若出现新内核 API 调用，只能在完整 Actions 日志确认后做最小兼容层，不能凭旧版本错误列表盲改。
 
-### WildKernels versus ShirkNeko
+## Actions 实测记录
 
-The two repositories share history but are no longer the same implementation:
+### 首轮：`40097079789`
 
-| Repository | Current reference | Tracked files | Build architecture | Scope |
+- 私有 MuMu 源码 checkout、依赖安装、overlay、SukiSU r2 clone 与配置阶段均成功。
+- 实际编译运行约 10 分钟后在 Android common 基线失败。
+- 首个错误是 `kernel/events/core.c` 引用不存在的 `perf_event_context.rotate_necessary`，还没有进入 SukiSU r2 的 4.19 API 兼容错误。
+- 根因是固定到了未带紧随其后的 build-fix 的 `f931d3c3` merge commit。
+- 处理：Android common 固定点更新为直接修复提交 `60080b53`，继续由 GitHub Actions 重跑验证。
+
+## 仓库结构与来源关系
+
+本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
+
+当前 GitHub 仓库已经解除 fork 关系。`upstream` 和 `wild` 仅作为普通只读 Git remote；更新通过明确的 fetch、merge 或 cherry-pick 完成，不使用 GitHub fork sync，也不会因为上游删除仓库或分支而自动删除本仓库内容。
+
+提交 `eb74629a` 将主构建结构切换为 ShirkNeko 的紧凑 Python 方案。私有矩阵功能按当前 Python 架构逐项迁回，而不是恢复庞大的 composite-action 目录。
+
+### ShirkNeko 与 WildKernels 的区别
+
+| 仓库 | 记录的参考提交 | 跟踪文件数 | 构建架构 | 主要范围 |
 | --- | --- | ---: | --- | --- |
-| [WildKernels/GKI_KernelSU_SUSFS](https://github.com/WildKernels/GKI_KernelSU_SUSFS) | `222173a6397e27bcc6461d4600c3ecb5d8ac61da` (2026-10-23) | 108 | Reusable workflows plus many composite actions and per-family JSON files | Broad GKI matrix, multiple root implementations, feature modules, validation and releases |
-| [ShirkNeko/GKI_KernelSU_SUSFS](https://github.com/ShirkNeko/GKI_KernelSU_SUSFS) | `814c5c22afbaa707c50a7573ec4edc338e80004a` (2026-08-27) | 14 | Two workflows backed by a compact Python builder and one `matrix.json` | SukiSU Ultra/SUSFS, selected Android 12-15 GKI targets |
+| [WildKernels/GKI_KernelSU_SUSFS](https://github.com/WildKernels/GKI_KernelSU_SUSFS) | `222173a6397e27bcc6461d4600c3ecb5d8ac61da`（2026-10-23） | 108 | 可复用 workflow、大量 composite action、按内核族拆分 JSON | 更广的 GKI 矩阵、多种 root 实现、功能模块、校验与 release |
+| [ShirkNeko/GKI_KernelSU_SUSFS](https://github.com/ShirkNeko/GKI_KernelSU_SUSFS) | `814c5c22afbaa707c50a7573ec4edc338e80004a`（2026-08-27） | 14 | 两个 workflow、紧凑 Python builder、单一 `matrix.json` | SukiSU Ultra/SUSFS 与选定的 Android 12-15 GKI 目标 |
 
-Their merge base is `a834afe0383fe1a5b32a89bb175bbf340be6c8c6`.
-At the recorded heads WildKernels is 2,322 commits ahead of that base and
-ShirkNeko is 200 commits ahead, so neither current head is the other's latest
-revision. "Latest" must identify which implementation is intended.
+两者共同祖先为 `a834afe0383fe1a5b32a89bb175bbf340be6c8c6`。在记录的 head 上，WildKernels 相对共同祖先领先 2322 个提交，ShirkNeko 领先 200 个提交；两者是共同历史后的不同实现，不是简单的“新版目录”和“旧版目录”。
 
-This repository now uses ShirkNeko's Python layout as the primary build-system
-shape because it is smaller and easier to extend for private targets. The
-pre-migration WildKernels implementation remains preserved on
-`backup/wildkernels-2026-10-24`; exact source commits, stock configs and newer
-kernel-family support are ported into the Python model rather than restoring
-the full composite-action tree.
+## Matrix 与私有目标
 
-### Matrix and private-target compatibility
+当前 Python builder 从 `.github/workflows/config/matrix.json` 读取全部 30 个通用目标，覆盖 Android 12 / 5.10 到 Android 17 / 6.18，并保留额外的 Android 13 / 5.10、Android 14 / 5.15 与 AndroMeld Android 16 / 6.12.74 支持。
 
-The migrated builder now reads all 30 targets exclusively from
-`.github/workflows/config/matrix.json`; the duplicate matrix formerly embedded
-in `build.py` has been removed. The matrix covers Android 12 / 5.10 through
-Android 17 / 6.18, including the additional 13/5.10 and 14/5.15 families.
+MuMu 1.9.9 / 4.19.195 不进入该通用 matrix。它是非 GKI 内核并修改了私有 task ABI，必须使用独立源码、config、header overlay、workflow 和独立 LKM/Image 产物；只增加一行 `matrix.json` 无法正确支持。
 
-Private targets fall into three different classes:
+## 已取消的错误实验
 
-1. Another monthly sublevel on an already supported Google GKI branch can be
-   added as a matrix row after verifying that the manifest branch exists.
-2. Another GKI family or an exact device kernel, such as AndroMeld Android 16 /
-   6.12.74, also needs version validation, exact source checkout, stock-config
-   installation, build-system and packaging support. Those fields now flow
-   through `BuildConfig` in the Python builder. The 6.12 row also selects
-   Simonpunk's `gki-android16-6.12` SUSFS branch and the retained compatibility
-   adapters.
-3. MuMu 1.9.9 / 4.19.195 is non-GKI and changes the private task ABI. It needs a
-   separate source/config/header backend and separate LKM/image artifacts; a
-   `matrix.json` row alone cannot support it.
-
-If any source or patch repository is private, repository URL/ref and checkout
-credentials must be explicit workflow inputs or secrets rather than the public
-URLs hard-coded by Shirk's `config.py`.
-
-## Cancelled experiment
-
-Workflow run `40093890646` built a generic Android 12 / 5.10 image before the
-4.19 baseline was corrected. It was cancelled and none of its temporary 5.10
-device-profile changes were committed.
+Actions run `40093890646` 曾在确认真实基线前构建通用 Android 12 / 5.10 镜像。该任务已经取消，其临时 5.10 设备配置没有进入提交，也不属于 MuMu 4.19 方案。
