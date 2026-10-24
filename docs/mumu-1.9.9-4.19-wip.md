@@ -128,6 +128,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 新版 arm64 seccomp 头将该宏定义为 `NR_syscalls`；4.19 已提供 `NR_syscalls`，所以补同义宏即可。
 - 4.19 arm64 未定义 `SECCOMP_ARCH_COMPAT`，r2 的 compat bitmap 分支不会编入，无需虚构 compat syscall 数量。
 
+### 第八轮：`40104703325`
+
+- seccomp syscall 数量兼容宏已通过，cache 命中率 `99.34%`。
+- 唯一新错误为 `infra/su_mount_ns.c` 包含 4.19 不存在的 `uapi/linux/mount.h`。
+- 该文件使用的 `CLONE_NEWNS`、`MS_PRIVATE`、`MS_REC` 已由现有 4.19 头链提供；删除多余的新版 mount UAPI include，不复制头文件常量。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

@@ -386,6 +386,12 @@ static int ksu_wrapper_dedupe_file_range(struct file *file_in, loff_t pos_in, st
 ''',
         "Linux 4.19 native seccomp syscall count",
     )
+    replace_once(
+        checkout / "kernel/infra/su_mount_ns.c",
+        "#include <uapi/linux/mount.h>\n",
+        "",
+        "Linux 4.19 mount flags header",
+    )
 
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))
