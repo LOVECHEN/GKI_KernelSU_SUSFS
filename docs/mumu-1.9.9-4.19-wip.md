@@ -207,6 +207,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - LKM 构建单独使用 `KBUILD_MODPOST_WARN=1` 保留这些符号，随后在 GitHub runner 上用 `aarch64-linux-gnu-nm` 逐一验证它们均存在于同轮 `vmlinux`。内置 KPM `Image` 不使用该放宽。
 - 该 `.ko` 必须由 SukiSU 管理器/`ksuinit` 的手工重定位路径加载，不是给普通 `insmod` 直接加载的通用模块。
 
+### 第二十一轮：`40116006066`
+
+- LKM 已成功进入最终 `.ko` 链接，`nm` 核对的所有未定义符号中，只有 `path_mount`、`path_umount`、`seccomp_filter_release` 不存在于 4.19 `vmlinux`。
+- 这 3 个都是后续内核重构后的新名字：4.19 对应功能分别由 `do_mount`、`ksys_umount`、`put_seccomp_filter` 提供。
+- `<5.9` 的 mount/unmount 分支改用旧 API，并因旧 API 参数仍标记为 userspace pointer，仅在调用期间用 `KERNEL_DS` 传入内核路径字符串；`<5.11` 释放 seccomp filter 时调用 `put_seccomp_filter()`。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

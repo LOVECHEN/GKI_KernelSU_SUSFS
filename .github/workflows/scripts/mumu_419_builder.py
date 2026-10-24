@@ -1118,6 +1118,127 @@ static int security_sid_to_context_with_policy(struct selinux_policy *policy, u3
         "",
         "Linux 4.19 mount flags header",
     )
+    su_mount_ns = checkout / "kernel/infra/su_mount_ns.c"
+    replace_once(
+        su_mount_ns,
+        '''#include <linux/task_work.h>
+#include <linux/version.h>
+''',
+        '''#include <linux/task_work.h>
+#include <linux/uaccess.h>
+#include <linux/version.h>
+''',
+        "Linux 4.19 mount address-limit helpers",
+    )
+    replace_once(
+        su_mount_ns,
+        '''extern int path_mount(const char *dev_name, struct path *path, const char *type_page, unsigned long flags,
+                      void *data_page);
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+extern int path_mount(const char *dev_name, struct path *path, const char *type_page, unsigned long flags,
+                      void *data_page);
+#else
+extern long do_mount(const char *dev_name, const char __user *dir_name, const char *type_page,
+                     unsigned long flags, void *data_page);
+#endif
+''',
+        "Linux 4.19 mount implementation declaration",
+    )
+    replace_once(
+        su_mount_ns,
+        '''    struct path root_path;
+    get_fs_root(current->fs, &root_path);
+    int pm_ret = path_mount(NULL, &root_path, NULL, MS_PRIVATE | MS_REC, NULL);
+    path_put(&root_path);
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+    struct path root_path;
+    get_fs_root(current->fs, &root_path);
+    int pm_ret = path_mount(NULL, &root_path, NULL, MS_PRIVATE | MS_REC, NULL);
+    path_put(&root_path);
+#else
+    mm_segment_t old_fs = get_fs();
+    int pm_ret;
+    set_fs(KERNEL_DS);
+    pm_ret = do_mount(NULL, (const char __user *)"/", NULL, MS_PRIVATE | MS_REC, NULL);
+    set_fs(old_fs);
+#endif
+''',
+        "Linux 4.19 private root mount",
+    )
+    kernel_umount = checkout / "kernel/feature/kernel_umount.c"
+    replace_once(
+        kernel_umount,
+        '''#include <linux/types.h>
+
+#include "feature/kernel_umount.h"
+''',
+        '''#include <linux/types.h>
+#include <linux/uaccess.h>
+#include <linux/version.h>
+
+#include "feature/kernel_umount.h"
+''',
+        "Linux 4.19 unmount compatibility headers",
+    )
+    replace_once(
+        kernel_umount,
+        "extern int path_umount(struct path *path, int flags);\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+extern int path_umount(struct path *path, int flags);
+#else
+extern int ksys_umount(char __user *name, int flags);
+#endif
+''',
+        "Linux 4.19 unmount implementation declaration",
+    )
+    replace_once(
+        kernel_umount,
+        '''static void ksu_umount_mnt(const char *mnt, struct path *path, int flags)
+{
+    int err = path_umount(path, flags);
+    if (err) {
+''',
+        '''static void ksu_umount_mnt(const char *mnt, struct path *path, int flags)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+    int err = path_umount(path, flags);
+#else
+    mm_segment_t old_fs = get_fs();
+    int err;
+    set_fs(KERNEL_DS);
+    err = ksys_umount((char __user *)mnt, flags);
+    set_fs(old_fs);
+    path_put(path);
+#endif
+    if (err) {
+''',
+        "Linux 4.19 kernel unmount implementation",
+    )
+    app_profile = checkout / "kernel/policy/app_profile.c"
+    replace_once(
+        app_profile,
+        "void seccomp_filter_release(struct task_struct *tsk);\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
+void seccomp_filter_release(struct task_struct *tsk);
+#else
+void put_seccomp_filter(struct task_struct *tsk);
+#endif
+''',
+        "Linux 4.19 seccomp release declaration",
+    )
+    replace_once(
+        app_profile,
+        "    seccomp_filter_release(fake);\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
+    seccomp_filter_release(fake);
+#else
+    put_seccomp_filter(fake);
+#endif
+''',
+        "Linux 4.19 seccomp release implementation",
+    )
     pkg_observer = checkout / "kernel/manager/pkg_observer.c"
     replace_once(
         pkg_observer,
