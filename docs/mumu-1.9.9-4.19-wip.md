@@ -121,6 +121,13 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 4.19 尚未合并统一的 `remap_file_range`，但有 `clone_file_range` 和 `dedupe_file_range`；兼容层分别转发 source-wrapper 与 destination-wrapper，保留克隆和去重功能。
 - 4.19 的 inode 分配路径已经调用 `security_inode_alloc` 并建立 `i_security`，但没有 `security_inode_init_security_anon` 与 `selinux_inode()`；兼容层跳过不存在的 anon hook，随后直接通过 `wrapper_inode->i_security` 设置 `ksu_file_sid`。
 
+### 第七轮：`40104099042`
+
+- `file_wrapper.c` 的 4.19 VFS/SELinux 映射全部通过。
+- 唯一新错误为 `infra/seccomp_cache.c` 缺少 `SECCOMP_ARCH_NATIVE_NR`。
+- 新版 arm64 seccomp 头将该宏定义为 `NR_syscalls`；4.19 已提供 `NR_syscalls`，所以补同义宏即可。
+- 4.19 arm64 未定义 `SECCOMP_ARCH_COMPAT`，r2 的 compat bitmap 分支不会编入，无需虚构 compat syscall 数量。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

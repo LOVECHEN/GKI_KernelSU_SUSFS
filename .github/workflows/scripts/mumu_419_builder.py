@@ -375,6 +375,17 @@ static int ksu_wrapper_dedupe_file_range(struct file *file_in, loff_t pos_in, st
         "    struct inode_security_struct *wrapper_sec = wrapper_inode->i_security;\n",
         "Linux 4.19 inode security accessor",
     )
+    replace_once(
+        checkout / "kernel/infra/seccomp_cache.c",
+        '#include <linux/seccomp.h>\n',
+        '''#include <linux/seccomp.h>
+
+#ifndef SECCOMP_ARCH_NATIVE_NR
+#define SECCOMP_ARCH_NATIVE_NR NR_syscalls
+#endif
+''',
+        "Linux 4.19 native seccomp syscall count",
+    )
 
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))
