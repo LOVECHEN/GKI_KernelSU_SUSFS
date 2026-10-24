@@ -153,6 +153,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 唯一新错误为 `struct seccomp` 没有 `filter_count`。Linux 上游标签确认该字段从 5.9 才出现，4.19 的结构只有 `mode` 与 `filter`。
 - 兼容层仅在 `>= 5.9` 清零 `filter_count`；4.19 仍按原逻辑清除 `TIF_SECCOMP`、置空 `filter` 并调用 `seccomp_filter_release()`，不改变旧内核释放路径。
 
+### 第十二轮：`40108530403`
+
+- seccomp 结构兼容已通过，唯一新错误进入 `extension/cpu_spoof.c`：4.19 的 `struct clocksource` 没有 `vdso_clock_mode`。
+- Linux 上游标签确认该字段从 5.7 才加入。MuMu 4.19 已能编译同一函数中针对 `vdso_data` 和 `vdso_default` 的写入路径。
+- 兼容层仅对 `>= 5.7` 编译 `curr_clocksource->vdso_clock_mode` 写入；4.19 保留其余 vDSO 数据更新、CPU capability 清理和 CPU ID 伪装逻辑。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

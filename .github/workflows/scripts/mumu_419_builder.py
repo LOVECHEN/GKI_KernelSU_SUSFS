@@ -395,6 +395,39 @@ static int ksu_wrapper_dedupe_file_range(struct file *file_in, loff_t pos_in, st
 ''',
         "Linux 4.19 seccomp state layout",
     )
+    cpu_spoof = checkout / "kernel/extension/cpu_spoof.c"
+    replace_once(
+        cpu_spoof,
+        '''                {
+                    struct clocksource **curr_cs_ptr =
+                        (struct clocksource **)find_kernel_symbol_exact(
+                            "curr_clocksource");
+                    if (curr_cs_ptr && *curr_cs_ptr) {
+                        (*curr_cs_ptr)->vdso_clock_mode =
+                            VDSO_CLOCKMODE_ARCHTIMER;
+                    } else {
+                        pr_warn("ksu: set_spoof_cpu failed to resolve 'curr_clocksource'\\n");
+                        ++missing;
+                    }
+                }
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+                {
+                    struct clocksource **curr_cs_ptr =
+                        (struct clocksource **)find_kernel_symbol_exact(
+                            "curr_clocksource");
+                    if (curr_cs_ptr && *curr_cs_ptr) {
+                        (*curr_cs_ptr)->vdso_clock_mode =
+                            VDSO_CLOCKMODE_ARCHTIMER;
+                    } else {
+                        pr_warn("ksu: set_spoof_cpu failed to resolve 'curr_clocksource'\\n");
+                        ++missing;
+                    }
+                }
+#endif
+''',
+        "Linux 4.19 clocksource vDSO state",
+    )
     replace_once(
         checkout / "kernel/infra/su_mount_ns.c",
         "#include <uapi/linux/mount.h>\n",
