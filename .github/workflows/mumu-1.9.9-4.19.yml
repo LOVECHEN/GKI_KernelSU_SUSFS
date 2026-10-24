@@ -41,7 +41,8 @@ jobs:
             python3 rsync gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
       - name: Restore compiler cache
-        uses: actions/cache@v5
+        id: ccache-restore
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           key: mumu-419-${{ runner.os }}-${{ hashFiles('.github/workflows/scripts/mumu_419_builder.py') }}
@@ -49,6 +50,8 @@ jobs:
             mumu-419-${{ runner.os }}-
 
       - name: Build MuMu SukiSU artifacts
+        id: build
+        continue-on-error: true
         env:
           CCACHE_DIR: /home/runner/.cache/ccache
         run: |
@@ -60,6 +63,17 @@ jobs:
             --workspace "$RUNNER_TEMP/mumu-419" \
             --artifacts "$GITHUB_WORKSPACE/artifacts" \
             --target "${{ inputs.target }}"
+
+      - name: Save compiler cache
+        if: always() && steps.ccache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: mumu-419-${{ runner.os }}-${{ hashFiles('.github/workflows/scripts/mumu_419_builder.py') }}
+
+      - name: Propagate build failure
+        if: steps.build.outcome == 'failure'
+        run: exit 1
 
       - name: Show artifact metadata
         run: |

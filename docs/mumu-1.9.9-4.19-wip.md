@@ -94,6 +94,13 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 处理：使用 `no_stack_protector` 普通 C 包装先初始化 `__stack_chk_guard`，再调用并返回 `kernelsu_init()`；语义仍是进入带 stack protector 的主体前完成 canary 初始化。
 - Actions 增加持久化 `ccache`，实际编译仍只在 GitHub 执行，后续兼容迭代复用已编对象。
 
+### 第三轮：`40099568023`
+
+- 第二轮的两个 `core/init.c` 错误均已越过，证明 namespace 与 GCC canary bootstrap 兼容转换有效。
+- 编译进入 `drivers/kernelsu/feature/sucompat.c` 后，唯一错误为 4.19 不存在 `linux/pgtable.h`。
+- `sucompat.c` 没有调用任何页表 API；`untagged_addr` 已由其现有的 `linux/mm.h` 提供，因此删除多余 include，不引入替代实现。
+- 本轮生成 3904 个可缓存对象、约 0.4 GB ccache。原 `actions/cache` 在失败 job 中不保存 post cache，工作流已改为显式 `restore`/`save`，在传播编译失败前保存缓存。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

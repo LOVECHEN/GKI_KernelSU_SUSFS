@@ -241,6 +241,12 @@ __attribute__((no_stack_protector)) int __init kernelsu_init_early(void)
 ''',
         "GCC arm64 stack protector bootstrap",
     )
+    replace_once(
+        checkout / "kernel/feature/sucompat.c",
+        "#include <linux/pgtable.h>\n",
+        "",
+        "Linux 4.19 unused pgtable header",
+    )
 
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))
