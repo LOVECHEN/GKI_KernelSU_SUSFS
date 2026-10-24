@@ -733,6 +733,236 @@ static DEFINE_MUTEX(selinux_hide_mutex);
 ''',
             f"Linux 4.19 SELinux cred accessor macro in {relative}",
         )
+    sepolicy = checkout / "kernel/selinux/sepolicy.c"
+    replace_once(
+        sepolicy,
+        "        for (n = db->te_avtab.htable[i]; n; prev = n, n = n->next) {\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+        n = db->te_avtab.htable[i];
+#else
+        n = flex_array_get_ptr(db->te_avtab.htable, i);
+#endif
+        for (; n; prev = n, n = n->next) {
+''',
+        "Linux 4.19 avtab bucket lookup",
+    )
+    replace_once(
+        sepolicy,
+        "                db->te_avtab.htable[i] = n->next;\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+                db->te_avtab.htable[i] = n->next;
+#else
+                flex_array_put_ptr(db->te_avtab.htable, i, n->next, GFP_ATOMIC | __GFP_ZERO);
+#endif
+''',
+        "Linux 4.19 avtab bucket update",
+    )
+    replace_once(
+        sepolicy,
+        "            removed.htable[0] = n;\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+            removed.htable[0] = n;
+#else
+            flex_array_put_ptr(removed.htable, 0, n, GFP_ATOMIC | __GFP_ZERO);
+#endif
+''',
+        "Linux 4.19 removed avtab bucket",
+    )
+    replace_once(
+        sepolicy,
+        '''static bool add_filename_trans(struct policydb *db, const char *s, const char *t, const char *c, const char *d,
+                               const char *o)
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+static bool add_filename_trans(struct policydb *db, const char *s, const char *t, const char *c, const char *d,
+                               const char *o)
+''',
+        "Linux 4.19 filename transition modern branch",
+    )
+    replace_once(
+        sepolicy,
+        '''out:
+    return false;
+}
+
+static bool add_genfscon(struct policydb *db, const char *fs_name, const char *path, const char *context)
+''',
+        '''out:
+    return false;
+}
+#else
+static bool add_filename_trans(struct policydb *db, const char *s, const char *t, const char *c, const char *d,
+                               const char *o)
+{
+    struct type_datum *src, *tgt, *def;
+    struct class_datum *cls;
+    struct filename_trans key;
+    struct filename_trans_datum *trans;
+    struct filename_trans *new_key = NULL;
+
+    src = symtab_search(&db->p_types, s);
+    tgt = symtab_search(&db->p_types, t);
+    cls = symtab_search(&db->p_classes, c);
+    def = symtab_search(&db->p_types, d);
+    if (!src || !tgt || !cls || !def) {
+        pr_warn("filename transition symbol missing: %s %s %s %s\\n", s, t, c, d);
+        return false;
+    }
+
+    key.ttype = tgt->value;
+    key.tclass = cls->value;
+    key.name = (char *)o;
+    trans = hashtab_search(db->filename_trans, &key);
+    if (!trans) {
+        trans = kzalloc(sizeof(*trans), GFP_KERNEL);
+        new_key = kzalloc(sizeof(*new_key), GFP_KERNEL);
+        if (!trans || !new_key)
+            goto legacy_free;
+        *new_key = key;
+        new_key->name = kstrdup(key.name, GFP_KERNEL);
+        if (!new_key->name)
+            goto legacy_free;
+        trans->otype = def->value;
+        if (hashtab_insert(db->filename_trans, new_key, trans)) {
+            kfree(new_key->name);
+            goto legacy_free;
+        }
+    } else {
+        trans->otype = def->value;
+    }
+
+    return ebitmap_set_bit(&db->filename_trans_ttypes, src->value - 1, 1) == 0;
+
+legacy_free:
+    kfree(new_key);
+    kfree(trans);
+    return false;
+}
+#endif
+
+static bool add_genfscon(struct policydb *db, const char *fs_name, const char *path, const char *context)
+''',
+        "Linux 4.19 filename transition implementation",
+    )
+    replace_once(
+        sepolicy,
+        "static bool add_type(struct policydb *db, const char *type_name, bool attr)\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+static bool add_type(struct policydb *db, const char *type_name, bool attr)
+''',
+        "Linux 4.19 type table modern branch",
+    )
+    replace_once(
+        sepolicy,
+        '''    return true;
+}
+
+static bool set_type_state(struct policydb *db, const char *type_name, bool permissive)
+''',
+        '''    return true;
+}
+#else
+static bool add_type(struct policydb *db, const char *type_name, bool attr)
+{
+    struct type_datum *type = symtab_search(&db->p_types, type_name);
+    struct flex_array *new_attr;
+    struct flex_array *new_types;
+    struct flex_array *new_names;
+    struct flex_array *old;
+    char *key;
+    void *elem;
+    u32 value;
+    int i;
+
+    if (type)
+        return true;
+
+    value = ++db->p_types.nprim;
+    type = kzalloc(sizeof(*type), GFP_KERNEL);
+    key = kstrdup(type_name, GFP_KERNEL);
+    if (!type || !key)
+        return false;
+    type->primary = 1;
+    type->value = value;
+    type->attribute = attr;
+    if (symtab_insert(&db->p_types, key, type))
+        return false;
+
+    new_attr = flex_array_alloc(sizeof(struct ebitmap), value, GFP_KERNEL | __GFP_ZERO);
+    new_types = flex_array_alloc(sizeof(struct type_datum *), value, GFP_KERNEL | __GFP_ZERO);
+    new_names = flex_array_alloc(sizeof(char *), value, GFP_KERNEL | __GFP_ZERO);
+    if (!new_attr || !new_types || !new_names)
+        return false;
+    if (flex_array_prealloc(new_attr, 0, value, GFP_KERNEL | __GFP_ZERO) ||
+        flex_array_prealloc(new_types, 0, value, GFP_KERNEL | __GFP_ZERO) ||
+        flex_array_prealloc(new_names, 0, value, GFP_KERNEL | __GFP_ZERO))
+        return false;
+
+    for (i = 0; i < value - 1; i++) {
+        elem = flex_array_get(db->type_attr_map_array, i);
+        if (elem)
+            flex_array_put(new_attr, i, elem, GFP_KERNEL | __GFP_ZERO);
+        elem = flex_array_get_ptr(db->type_val_to_struct_array, i);
+        if (elem)
+            flex_array_put_ptr(new_types, i, elem, GFP_KERNEL | __GFP_ZERO);
+        elem = flex_array_get_ptr(db->sym_val_to_name[SYM_TYPES], i);
+        if (elem)
+            flex_array_put_ptr(new_names, i, elem, GFP_KERNEL | __GFP_ZERO);
+    }
+
+    old = db->type_attr_map_array;
+    db->type_attr_map_array = new_attr;
+    flex_array_free(old);
+    ebitmap_init(flex_array_get(db->type_attr_map_array, value - 1));
+    ebitmap_set_bit(flex_array_get(db->type_attr_map_array, value - 1), value - 1, 1);
+
+    old = db->type_val_to_struct_array;
+    db->type_val_to_struct_array = new_types;
+    flex_array_free(old);
+    flex_array_put_ptr(db->type_val_to_struct_array, value - 1, type, GFP_KERNEL | __GFP_ZERO);
+
+    old = db->sym_val_to_name[SYM_TYPES];
+    db->sym_val_to_name[SYM_TYPES] = new_names;
+    flex_array_free(old);
+    flex_array_put_ptr(db->sym_val_to_name[SYM_TYPES], value - 1, key, GFP_KERNEL | __GFP_ZERO);
+
+    for (i = 0; i < db->p_roles.nprim; i++)
+        ebitmap_set_bit(&db->role_val_to_struct[i]->types, value - 1, 1);
+    return true;
+}
+#endif
+
+static bool set_type_state(struct policydb *db, const char *type_name, bool permissive)
+''',
+        "Linux 4.19 flex-array type table implementation",
+    )
+    replace_once(
+        sepolicy,
+        "    struct ebitmap *sattr = &db->type_attr_map_array[type->value - 1];\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+    struct ebitmap *sattr = &db->type_attr_map_array[type->value - 1];
+#else
+    struct ebitmap *sattr = flex_array_get(db->type_attr_map_array, type->value - 1);
+#endif
+''',
+        "Linux 4.19 type attribute map lookup",
+    )
+    replace_once(
+        sepolicy,
+        '''        if (old_pol->policydb.android_netlink_getneigh) {
+            pr_info("adding POLICYDB_CONFIG_ANDROID_NETLINK_GETNEIGH\\n");
+            *config_ptr |= POLICYDB_CONFIG_ANDROID_NETLINK_GETNEIGH;
+        }
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+        if (old_pol->policydb.android_netlink_getneigh) {
+            pr_info("adding POLICYDB_CONFIG_ANDROID_NETLINK_GETNEIGH\\n");
+            *config_ptr |= POLICYDB_CONFIG_ANDROID_NETLINK_GETNEIGH;
+        }
+#endif
+''',
+        "Linux 4.19 policy config fields",
+    )
     replace_once(
         checkout / "kernel/infra/su_mount_ns.c",
         "#include <uapi/linux/mount.h>\n",

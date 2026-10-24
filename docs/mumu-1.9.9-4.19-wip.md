@@ -177,6 +177,13 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 唯一新错误为 `selinux/selinux.c` 找不到 `selinux_cred()`。Linux 上游标签确认该 helper 从 5.1 才加入；4.19 的等价数据仍由 `cred->security` 持有。
 - 兼容层统一包装 `selinux.c` 与 `selinux_hide.c` 的 5 处凭据安全字段访问：4.19 读取 `cred->security`，5.1+ 保持调用 `selinux_cred()`。
 
+### 第十六轮：`40111430275`
+
+- `selinux_cred` 兼容已通过，错误全部集中到 `selinux/sepolicy.c` 的 4.19 容器布局。
+- 4.19 的 avtab 桶、type attribute map、type-to-struct 与 type name 表仍由 `flex_array` 保存；5.1 起才切换为普通指针数组。兼容分支恢复 SukiSU 删除 non-GKI 支持前的 flex-array 扩容方式，同时保留 r2 的规则语义。
+- 4.19 的 filename transition 使用 `struct filename_trans` 与旧 `hashtab` API；5.7+ 才有 `filename_trans_key`、源类型 bitmap 与链式 datum。两个版本分别维护，且 r2 的新版路径不变。
+- `remove_avtab_node` 同样按 `<5.1` 使用 `flex_array_get_ptr`/`flex_array_put_ptr`；4.19 不存在的 Android netlink getneigh policy config 位不写入。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
