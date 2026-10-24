@@ -18,6 +18,17 @@ GitHub Actions. It is intentionally not part of the generic 5.10+ GKI matrix.
 - KPM template reference: `liankong233/KPM-Build-Anywhere` commit
   `e26d77c8d6d38abcf7340a16a9b809660b9e78f4`.
 
+## Upstream references
+
+- SukiSU KernelPatch/KPM layer:
+  <https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch>
+- KPM standalone build template:
+  <https://github.com/liankong233/KPM-Build-Anywhere>
+- SukiSU Ultra root framework and kernel integration:
+  <https://github.com/SukiSU-Ultra/SukiSU-Ultra>
+- ShirkNeko GKI build-system reference and original fork parent:
+  <https://github.com/ShirkNeko/GKI_KernelSU_SUSFS>
+
 ## Confirmed constraints
 
 - Do not replace the MuMu kernel with Android 12 / 5.10 GKI. The 1.9.9 guest
