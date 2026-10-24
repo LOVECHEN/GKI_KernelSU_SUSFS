@@ -101,6 +101,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - `sucompat.c` 没有调用任何页表 API；`untagged_addr` 已由其现有的 `linux/mm.h` 提供，因此删除多余 include，不引入替代实现。
 - 本轮生成 3904 个可缓存对象、约 0.4 GB ccache。原 `actions/cache` 在失败 job 中不保存 post cache，工作流已改为显式 `restore`/`save`，在传播编译失败前保存缓存。
 
+### 第四轮：`40100971711`
+
+- 已越过 `linux/pgtable.h`，唯一新错误为 4.19 不存在 `strncpy_from_user_nofault`。
+- 4.19 提供语义相同的旧名称 `strncpy_from_unsafe_user`；对 r2 源码中 3 个文件的 5 处调用统一做严格计数替换。
+- 显式 cache 流程验证成功：在 job 标记失败前保存了约 408.7 MB、3904 个可缓存对象，后续 Actions run 可直接复用。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

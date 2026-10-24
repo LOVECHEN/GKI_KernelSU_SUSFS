@@ -247,6 +247,24 @@ __attribute__((no_stack_protector)) int __init kernelsu_init_early(void)
         "",
         "Linux 4.19 unused pgtable header",
     )
+    nofault_calls = {
+        "kernel/runtime/ksud_integration.c": 1,
+        "kernel/sulog/event.c": 2,
+        "kernel/feature/sucompat.c": 2,
+    }
+    for relative, expected in nofault_calls.items():
+        path = checkout / relative
+        content = path.read_text(encoding="utf-8")
+        actual = content.count("strncpy_from_user_nofault")
+        if actual != expected:
+            raise RuntimeError(
+                f"Linux 4.19 nofault user copy in {relative}: "
+                f"expected {expected} matches, found {actual}"
+            )
+        path.write_text(
+            content.replace("strncpy_from_user_nofault", "strncpy_from_unsafe_user"),
+            encoding="utf-8",
+        )
 
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))
