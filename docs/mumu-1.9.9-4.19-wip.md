@@ -219,6 +219,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 第二套内置 KPM 构建已确认 `CONFIG_KPM=y` 且进入 `extension/kpm/kpm.c`，失败仅因 4.19 的 `access_ok` 仍是三参数形式。
 - `<5.0` 分支分别用 `VERIFY_READ`/`VERIFY_WRITE` 包装用户指针检查；同时修正 r2 KPM ABI 中将数值 `control_code` 误当指针检查、`LIST` 写 `arg1` 却检查 `arg2` 的两处运行时错误。
 
+### 第二十三轮：`40118548746`
+
+- KPM 的用户指针检查已通过，新失败点仅为 `super_access.c` 在 GNU89 模式下不允许 `for (size_t i = ...)` 形式。
+- 5 处循环变量前置声明，循环边界与算法不变。
+- 同时修正 `sukisu_super_access()` 内层遍历命中成员后却用外层索引 `i` 取 offset/size 的 r2 错误，改为实际命中的 `i1`。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

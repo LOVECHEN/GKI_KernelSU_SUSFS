@@ -1287,6 +1287,56 @@ void put_seccomp_filter(struct task_struct *tsk);
         "",
         "KPM numeric control code validation",
     )
+    super_access = checkout / "kernel/extension/kpm/super_access.c"
+    replace_once(
+        super_access,
+        '''int sukisu_super_find_struct(const char *struct_name, size_t *out_size,
+                             int *out_members)
+{
+''',
+        '''int sukisu_super_find_struct(const char *struct_name, size_t *out_size,
+                             int *out_members)
+{
+    size_t i;
+''',
+        "Linux 4.19 KPM struct loop declaration",
+    )
+    replace_once(
+        super_access,
+        '''int sukisu_super_access(const char *struct_name, const char *member_name,
+                        size_t *out_offset, size_t *out_size)
+{
+''',
+        '''int sukisu_super_access(const char *struct_name, const char *member_name,
+                        size_t *out_offset, size_t *out_size)
+{
+    size_t i, i1;
+''',
+        "Linux 4.19 KPM member loop declarations",
+    )
+    replace_once(
+        super_access,
+        '''int sukisu_super_container_of(const char *struct_name, const char *member_name,
+                              void *ptr, void **out_ptr)
+{
+''',
+        '''int sukisu_super_container_of(const char *struct_name, const char *member_name,
+                              void *ptr, void **out_ptr)
+{
+    size_t i, i1;
+''',
+        "Linux 4.19 KPM container loop declarations",
+    )
+    super_access_content = super_access.read_text(encoding="utf-8")
+    loop_i = "for (size_t i = 0;"
+    loop_i1 = "for (size_t i1 = 0;"
+    if super_access_content.count(loop_i) != 3 or super_access_content.count(loop_i1) != 2:
+        raise RuntimeError("Linux 4.19 KPM loops changed upstream")
+    super_access_content = super_access_content.replace(loop_i, "for (i = 0;")
+    super_access_content = super_access_content.replace(loop_i1, "for (i1 = 0;")
+    super_access_content = super_access_content.replace("info->members[i].offset", "info->members[i1].offset")
+    super_access_content = super_access_content.replace("info->members[i].size", "info->members[i1].size")
+    super_access.write_text(super_access_content, encoding="utf-8")
     pkg_observer = checkout / "kernel/manager/pkg_observer.c"
     replace_once(
         pkg_observer,
