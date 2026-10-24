@@ -113,6 +113,14 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 5 处 nofault user-copy 名称回退均已通过，唯一新错误是 arm64 `patch_memory.c` 使用 4.19 不存在的 `copy_to_kernel_nofault`。
 - MuMu 4.19 提供并以 GPL 导出了语义相同的旧接口 `probe_kernel_write`，因此只对 arm64 目标做严格单点替换。
 
+### 第六轮：`40103379602`
+
+- `probe_kernel_write` 回退已通过；compiler cache 命中 4160/4184，命中率 `99.43%`。
+- 错误集中到 `infra/file_wrapper.c` 的新版 VFS/SELinux API。
+- 4.19 的 `file_operations` 没有 `iopoll`，所以旧目标不注册该回调。
+- 4.19 尚未合并统一的 `remap_file_range`，但有 `clone_file_range` 和 `dedupe_file_range`；兼容层分别转发 source-wrapper 与 destination-wrapper，保留克隆和去重功能。
+- 4.19 的 inode 分配路径已经调用 `security_inode_alloc` 并建立 `i_security`，但没有 `security_inode_init_security_anon` 与 `selinux_inode()`；兼容层跳过不存在的 anon hook，随后直接通过 `wrapper_inode->i_security` 设置 `ksu_file_sid`。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

@@ -271,6 +271,110 @@ __attribute__((no_stack_protector)) int __init kernelsu_init_early(void)
         "probe_kernel_write(map, src, len)",
         "Linux 4.19 nofault kernel write",
     )
+    file_wrapper = checkout / "kernel/infra/file_wrapper.c"
+    replace_once(
+        file_wrapper,
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+static int ksu_wrapper_iopoll(struct kiocb *kiocb, struct io_comp_batch *icb, unsigned int v)
+{
+    struct ksu_file_wrapper *data = kiocb->ki_filp->private_data;
+    struct file *orig = data->orig;
+    kiocb->ki_filp = orig;
+    return orig->f_op->iopoll(kiocb, icb, v);
+}
+#else
+static int ksu_wrapper_iopoll(struct kiocb *kiocb, bool spin)
+{
+    struct ksu_file_wrapper *data = kiocb->ki_filp->private_data;
+    struct file *orig = data->orig;
+    kiocb->ki_filp = orig;
+    return orig->f_op->iopoll(kiocb, spin);
+}
+#endif
+
+''',
+        "",
+        "Linux 4.19 file_operations.iopoll",
+    )
+    replace_once(
+        file_wrapper,
+        '''// no REMAP_FILE_DEDUP: use file_in
+// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:common/fs/read_write.c;l=1598-1599;drc=398da7defe218d3e51b0f3bdff75147e28125b60
+// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:common/fs/remap_range.c;l=403-404;drc=398da7defe218d3e51b0f3bdff75147e28125b60
+// REMAP_FILE_DEDUP: use file_out
+// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:common/fs/remap_range.c;l=483-484;drc=398da7defe218d3e51b0f3bdff75147e28125b60
+static loff_t ksu_wrapper_remap_file_range(struct file *file_in, loff_t pos_in, struct file *file_out, loff_t pos_out,
+                                           loff_t len, unsigned int remap_flags)
+{
+    if (remap_flags & REMAP_FILE_DEDUP) {
+        struct ksu_file_wrapper *data = file_out->private_data;
+        struct file *orig = data->orig;
+        return orig->f_op->remap_file_range(file_in, pos_in, orig, pos_out, len, remap_flags);
+    } else {
+        struct ksu_file_wrapper *data = file_in->private_data;
+        struct file *orig = data->orig;
+        return orig->f_op->remap_file_range(orig, pos_in, file_out, pos_out, len, remap_flags);
+    }
+}
+''',
+        '''static int ksu_wrapper_clone_file_range(struct file *file_in, loff_t pos_in, struct file *file_out,
+                                                loff_t pos_out, u64 len)
+{
+    struct ksu_file_wrapper *data = file_in->private_data;
+    struct file *orig = data->orig;
+    return orig->f_op->clone_file_range(orig, pos_in, file_out, pos_out, len);
+}
+
+static int ksu_wrapper_dedupe_file_range(struct file *file_in, loff_t pos_in, struct file *file_out,
+                                         loff_t pos_out, u64 len)
+{
+    struct ksu_file_wrapper *data = file_out->private_data;
+    struct file *orig = data->orig;
+    return orig->f_op->dedupe_file_range(file_in, pos_in, orig, pos_out, len);
+}
+''',
+        "Linux 4.19 clone and dedupe file operations",
+    )
+    replace_once(
+        file_wrapper,
+        "    p->ops.iopoll = fp->f_op->iopoll ? ksu_wrapper_iopoll : NULL;\n",
+        "",
+        "Linux 4.19 iopoll assignment",
+    )
+    replace_once(
+        file_wrapper,
+        "    p->ops.remap_file_range = fp->f_op->remap_file_range ? ksu_wrapper_remap_file_range : NULL;\n",
+        '''    p->ops.clone_file_range = fp->f_op->clone_file_range ? ksu_wrapper_clone_file_range : NULL;
+    p->ops.dedupe_file_range = fp->f_op->dedupe_file_range ? ksu_wrapper_dedupe_file_range : NULL;
+''',
+        "Linux 4.19 clone and dedupe assignments",
+    )
+    replace_once(
+        file_wrapper,
+        '''    const struct qstr qname = QSTR_INIT(name, strlen(name));
+    int error;
+
+''',
+        "",
+        "Linux 4.19 anonymous inode security locals",
+    )
+    replace_once(
+        file_wrapper,
+        '''    error = security_inode_init_security_anon(inode, &qname, context_inode);
+    if (error) {
+        iput(inode);
+        return ERR_PTR(error);
+    }
+''',
+        "",
+        "Linux 4.19 anonymous inode security hook",
+    )
+    replace_once(
+        file_wrapper,
+        "    struct inode_security_struct *wrapper_sec = selinux_inode(wrapper_inode);\n",
+        "    struct inode_security_struct *wrapper_sec = wrapper_inode->i_security;\n",
+        "Linux 4.19 inode security accessor",
+    )
 
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))
