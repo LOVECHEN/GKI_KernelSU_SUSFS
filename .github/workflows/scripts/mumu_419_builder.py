@@ -441,6 +441,270 @@ static int ksu_wrapper_dedupe_file_range(struct file *file_in, loff_t pos_in, st
 ''',
         "Linux 4.19 clocksource vDSO state",
     )
+    sepolicy_h = checkout / "kernel/selinux/sepolicy.h"
+    replace_once(
+        sepolicy_h,
+        '''#include <linux/types.h>
+
+#include "ss/policydb.h"
+''',
+        '''#include <linux/types.h>
+#include <linux/version.h>
+
+#include "ss/policydb.h"
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+#include "ss/services.h"
+struct selinux_policy {
+    struct sidtab *sidtab;
+    struct policydb policydb;
+    struct selinux_map map;
+    u32 latest_granting;
+};
+#endif
+''',
+        "Linux 4.19 SELinux policy wrapper",
+    )
+    rules = checkout / "kernel/selinux/rules.c"
+    replace_once(
+        rules,
+        '''void apply_kernelsu_rules()
+{
+    struct selinux_policy *pol, *old_pol;
+    struct policydb *db;
+''',
+        '''void apply_kernelsu_rules()
+{
+    struct selinux_policy *pol, *old_pol;
+    struct policydb *db;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+    struct selinux_policy old_view;
+    struct policydb old_db;
+#endif
+''',
+        "Linux 4.19 initial policy locals",
+    )
+    replace_once(
+        rules,
+        '''    mutex_lock(&selinux_state.policy_mutex);
+
+    old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
+    backup_sepolicy = ksu_dup_sepolicy(old_pol);
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    mutex_lock(&selinux_state.policy_mutex);
+    old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
+#else
+    old_view.sidtab = selinux_state.ss->sidtab;
+    old_view.policydb = selinux_state.ss->policydb;
+    old_view.map = selinux_state.ss->map;
+    old_view.latest_granting = selinux_state.ss->latest_granting;
+    old_pol = &old_view;
+#endif
+    backup_sepolicy = ksu_dup_sepolicy(old_pol);
+''',
+        "Linux 4.19 initial policy snapshot",
+    )
+    replace_once(
+        rules,
+        '''    rcu_assign_pointer(selinux_state.policy, pol);
+    synchronize_rcu();
+    ksu_destroy_sepolicy(old_pol);
+
+    reset_avc_cache();
+out_unlock:
+    mutex_unlock(&selinux_state.policy_mutex);
+}
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    rcu_assign_pointer(selinux_state.policy, pol);
+    synchronize_rcu();
+    ksu_destroy_sepolicy(old_pol);
+#else
+    write_lock(&selinux_state.ss->policy_rwlock);
+    old_db = selinux_state.ss->policydb;
+    selinux_state.ss->policydb = pol->policydb;
+    memset(&pol->policydb, 0, sizeof(pol->policydb));
+    write_unlock(&selinux_state.ss->policy_rwlock);
+    policydb_destroy(&old_db);
+    kfree(pol);
+#endif
+
+    reset_avc_cache();
+out_unlock:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    mutex_unlock(&selinux_state.policy_mutex);
+#endif
+}
+''',
+        "Linux 4.19 initial policy commit",
+    )
+    replace_once(
+        rules,
+        '''    struct selinux_policy *pol, *old_pol;
+    struct policydb *db;
+    struct sepol_batch_cursor cursor;
+''',
+        '''    struct selinux_policy *pol, *old_pol;
+    struct policydb *db;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+    struct selinux_policy old_view;
+    struct policydb old_db;
+#endif
+    struct sepol_batch_cursor cursor;
+''',
+        "Linux 4.19 dynamic policy locals",
+    )
+    replace_once(
+        rules,
+        '''    mutex_lock(&selinux_state.policy_mutex);
+
+    old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
+    pol = ksu_dup_sepolicy(old_pol);
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    mutex_lock(&selinux_state.policy_mutex);
+    old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
+#else
+    old_view.sidtab = selinux_state.ss->sidtab;
+    old_view.policydb = selinux_state.ss->policydb;
+    old_view.map = selinux_state.ss->map;
+    old_view.latest_granting = selinux_state.ss->latest_granting;
+    old_pol = &old_view;
+#endif
+    pol = ksu_dup_sepolicy(old_pol);
+''',
+        "Linux 4.19 dynamic policy snapshot",
+    )
+    replace_once(
+        rules,
+        '''    rcu_assign_pointer(selinux_state.policy, pol);
+    synchronize_rcu();
+    ksu_destroy_sepolicy(old_pol);
+
+    reset_avc_cache();
+    ret = success_cmd_count;
+    goto out_unlock;
+
+out_drop_new_policy:
+    ksu_destroy_sepolicy(pol);
+out_unlock:
+    mutex_unlock(&selinux_state.policy_mutex);
+out_free:
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    rcu_assign_pointer(selinux_state.policy, pol);
+    synchronize_rcu();
+    ksu_destroy_sepolicy(old_pol);
+#else
+    write_lock(&selinux_state.ss->policy_rwlock);
+    old_db = selinux_state.ss->policydb;
+    selinux_state.ss->policydb = pol->policydb;
+    memset(&pol->policydb, 0, sizeof(pol->policydb));
+    write_unlock(&selinux_state.ss->policy_rwlock);
+    policydb_destroy(&old_db);
+    kfree(pol);
+#endif
+
+    reset_avc_cache();
+    ret = success_cmd_count;
+    goto out_unlock;
+
+out_drop_new_policy:
+    ksu_destroy_sepolicy(pol);
+out_unlock:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    mutex_unlock(&selinux_state.policy_mutex);
+#endif
+out_free:
+''',
+        "Linux 4.19 dynamic policy commit",
+    )
+    selinux_hide = checkout / "kernel/feature/selinux_hide.c"
+    replace_once(
+        selinux_hide,
+        '''#include "hook/lsm_hook.h"
+
+static DEFINE_MUTEX(selinux_hide_mutex);
+''',
+        '''#include "hook/lsm_hook.h"
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+#define ksu_status_lock (selinux_state.ss->status_lock)
+#define ksu_status_page (selinux_state.ss->status_page)
+#else
+#define ksu_status_lock ((&selinux_state)->status_lock)
+#define ksu_status_page ((&selinux_state)->status_page)
+#endif
+
+static DEFINE_MUTEX(selinux_hide_mutex);
+''',
+        "Linux 4.19 SELinux status storage",
+    )
+    hide_content = selinux_hide.read_text(encoding="utf-8")
+    status_fields = {
+        "selinux_state.status_lock": ("ksu_status_lock", 6),
+        "selinux_state.status_page": ("ksu_status_page", 2),
+    }
+    for old, (new, expected) in status_fields.items():
+        actual = hide_content.count(old)
+        if actual != expected:
+            raise RuntimeError(
+                f"Linux 4.19 SELinux status field {old}: "
+                f"expected {expected} matches, found {actual}"
+            )
+        hide_content = hide_content.replace(old, new)
+    selinux_hide.write_text(hide_content, encoding="utf-8")
+    replace_once(
+        selinux_hide,
+        '''    struct selinux_policy *orig_policy;
+    struct policydb *policydb, *orig_policydb;
+''',
+        '''    struct selinux_policy *orig_policy;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+    struct selinux_policy orig_view;
+#endif
+    struct policydb *policydb, *orig_policydb;
+''',
+        "Linux 4.19 SELinux hide policy locals",
+    )
+    replace_once(
+        selinux_hide,
+        '''    // removed: if (force)
+    rcu_read_lock();
+    orig_policy = rcu_dereference(selinux_state.policy);
+    orig_policydb = &orig_policy->policydb;
+''',
+        '''    // removed: if (force)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+    read_lock(&selinux_state.ss->policy_rwlock);
+    orig_view.sidtab = selinux_state.ss->sidtab;
+    orig_view.policydb = selinux_state.ss->policydb;
+    orig_view.map = selinux_state.ss->map;
+    orig_view.latest_granting = selinux_state.ss->latest_granting;
+    orig_policy = &orig_view;
+#else
+    rcu_read_lock();
+    orig_policy = rcu_dereference(selinux_state.policy);
+#endif
+    orig_policydb = &orig_policy->policydb;
+''',
+        "Linux 4.19 SELinux hide policy snapshot",
+    )
+    replace_once(
+        selinux_hide,
+        '''    rcu_read_unlock();
+    if (orig_rc_p)
+''',
+        '''#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+    read_unlock(&selinux_state.ss->policy_rwlock);
+#else
+    rcu_read_unlock();
+#endif
+    if (orig_rc_p)
+''',
+        "Linux 4.19 SELinux hide policy unlock",
+    )
     replace_once(
         checkout / "kernel/infra/su_mount_ns.c",
         "#include <uapi/linux/mount.h>\n",
