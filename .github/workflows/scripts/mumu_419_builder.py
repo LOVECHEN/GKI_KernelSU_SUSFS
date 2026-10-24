@@ -964,6 +964,12 @@ static bool set_type_state(struct policydb *db, const char *type_name, bool perm
         "Linux 4.19 policy config fields",
     )
     replace_once(
+        checkout / "kernel/sulog/event.c",
+        "#include <linux/minmax.h>\n",
+        "#include <linux/kernel.h>\n",
+        "Linux 4.19 min/max definitions",
+    )
+    replace_once(
         checkout / "kernel/infra/su_mount_ns.c",
         "#include <uapi/linux/mount.h>\n",
         "",

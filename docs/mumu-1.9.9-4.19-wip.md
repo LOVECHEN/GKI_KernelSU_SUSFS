@@ -184,6 +184,11 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 4.19 的 filename transition 使用 `struct filename_trans` 与旧 `hashtab` API；5.7+ 才有 `filename_trans_key`、源类型 bitmap 与链式 datum。两个版本分别维护，且 r2 的新版路径不变。
 - `remove_avtab_node` 同样按 `<5.1` 使用 `flex_array_get_ptr`/`flex_array_put_ptr`；4.19 不存在的 Android netlink getneigh policy config 位不写入。
 
+### 第十七轮：`40112310673`
+
+- 4.19 SELinux policy 容器兼容已全部通过编译，构建继续推进到 `sulog/event.c`。
+- 新版 SukiSU 直接包含 `linux/minmax.h`，而 Linux 4.19 尚未拆出该头文件；改用各版本均存在的 `linux/kernel.h` 提供同一组 `min`/`max` 定义。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
