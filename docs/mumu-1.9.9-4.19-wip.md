@@ -171,6 +171,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - Linux 4.19 的 `selinux_state` 持有 `struct selinux_ss *ss`，策略位于 `ss->policydb` 并由 `policy_rwlock` 保护；5.10+ 才使用 `selinux_state.policy`、`policy_mutex` 与独立 `struct selinux_policy`。
 - 兼容层没有退回旧版 SukiSU：为 4.19 定义与 5.10 布局相容的策略快照包装，继续使用 r2 的策略序列化副本、完整规则集和批量命令解析。修改完成后在 `policy_rwlock` 写锁内原子移入新的 `policydb`，再销毁旧策略；初始备份仍交给 r2 的 `selinux_hide` 使用。
 
+### 第十五轮：`40110727389`
+
+- r2 的策略快照、初始规则、动态批量规则以及 `selinux_hide` 状态/策略访问均已通过编译，说明 4.19 SELinux 布局桥接生效。
+- 唯一新错误为 `selinux/selinux.c` 找不到 `selinux_cred()`。Linux 上游标签确认该 helper 从 5.1 才加入；4.19 的等价数据仍由 `cred->security` 持有。
+- 兼容层统一包装 `selinux.c` 与 `selinux_hide.c` 的 5 处凭据安全字段访问：4.19 读取 `cred->security`，5.1+ 保持调用 `selinux_cred()`。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

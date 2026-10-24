@@ -705,6 +705,34 @@ static DEFINE_MUTEX(selinux_hide_mutex);
 ''',
         "Linux 4.19 SELinux hide policy unlock",
     )
+    cred_calls = {
+        "kernel/selinux/selinux.c": 3,
+        "kernel/feature/selinux_hide.c": 2,
+    }
+    for relative, expected in cred_calls.items():
+        path = checkout / relative
+        content = path.read_text(encoding="utf-8")
+        actual = content.count("selinux_cred(")
+        if actual != expected:
+            raise RuntimeError(
+                f"Linux 4.19 SELinux cred accessor in {relative}: "
+                f"expected {expected} matches, found {actual}"
+            )
+        path.write_text(content.replace("selinux_cred(", "ksu_selinux_cred("), encoding="utf-8")
+        replace_once(
+            path,
+            '#include "objsec.h"\n',
+            '''#include "objsec.h"
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+#define ksu_selinux_cred(cred) ((cred)->security)
+#else
+#define ksu_selinux_cred(cred) selinux_cred(cred)
+#endif
+''',
+            f"Linux 4.19 SELinux cred accessor macro in {relative}",
+        )
     replace_once(
         checkout / "kernel/infra/su_mount_ns.c",
         "#include <uapi/linux/mount.h>\n",
