@@ -434,6 +434,34 @@ static const struct fsnotify_ops ksu_ops = {
 ''',
         "Linux 4.19 fsnotify callback",
     )
+    allowlist = checkout / "kernel/policy/allowlist.c"
+    replace_once(
+        allowlist,
+        "#include <linux/task_work.h>\n",
+        '''#include <linux/task_work.h>
+#include <linux/sched/task.h>
+''',
+        "Linux 4.19 task reference helpers",
+    )
+    for relative in ["kernel/policy/allowlist.c", "kernel/supercall/supercall.c"]:
+        path = checkout / relative
+        replace_once(
+            path,
+            "#include <linux/version.h>\n",
+            '''#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0) && !defined(TWA_RESUME)
+#define TWA_RESUME true
+#endif
+''',
+            f"Linux 4.19 task-work notification in {relative}",
+        )
+    replace_once(
+        allowlist,
+        "        fallthrough;\n",
+        "        /* fall through */\n",
+        "Linux 4.19 fallthrough annotation",
+    )
 
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))

@@ -140,6 +140,13 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 唯一新错误为 `manager/pkg_observer.c` 使用新版 `.handle_inode_event` fsnotify 回调。
 - 4.19 仍使用 `.handle_event`，文件名参数为 NUL 结尾的 `unsigned char *`；兼容层按 4.19 的完整签名接收事件，保持原有 `packages.list` 长度和内容判定以及 task-work 延迟处理逻辑。
 
+### 第十轮：`40106012949`
+
+- GitHub runner 的 apt mirror 本轮波动约 12 分钟；实际缓存编译约 2.5 分钟后给出结果，不是源码卡死。
+- fsnotify 兼容回调已经通过。
+- `policy/allowlist.c` 的错误为 4.19 尚无 `TWA_RESUME` 枚举、缺少声明 `put_task_struct` 的 `linux/sched/task.h`，以及尚无 `fallthrough` 标识符。
+- 4.19 的 `task_work_add` 第三参数是 `bool`，因此 `TWA_RESUME` 回退为 `true`；同样使用该枚举的 `supercall.c` 一并适配。唯一 switch 贯穿改用 GCC 支持的 `/* fall through */` 注释。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
