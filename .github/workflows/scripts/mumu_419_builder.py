@@ -48,6 +48,14 @@ def append_once(path: Path, marker: str, block: str):
         path.write_text(content.rstrip() + "\n\n" + block.strip() + "\n", encoding="utf-8")
 
 
+def replace_once(path: Path, old: str, new: str, label: str):
+    content = path.read_text(encoding="utf-8")
+    count = content.count(old)
+    if count != 1:
+        raise RuntimeError(f"{label}: expected one match, found {count}")
+    path.write_text(content.replace(old, new, 1), encoding="utf-8")
+
+
 def set_config(path: Path, options: dict):
     lines = path.read_text(encoding="utf-8").splitlines()
     for key, value in options.items():
@@ -201,6 +209,39 @@ def integrate_sukisu(kernel: Path):
     if actual != SUKISU_COMMIT:
         raise RuntimeError(f"SukiSU commit mismatch: {actual}")
 
+    init = checkout / "kernel/core/init.c"
+    replace_once(
+        init,
+        '#include <linux/moduleparam.h>\n',
+        '''#include <linux/moduleparam.h>
+
+#ifndef MODULE_IMPORT_NS
+#define MODULE_IMPORT_NS(namespace)
+#endif
+''',
+        "Linux 4.19 module namespace compatibility",
+    )
+    replace_once(
+        init,
+        '''__attribute__((naked)) int __init kernelsu_init_early(void)
+{
+    asm("mov x19, x30;\\n"
+        "bl ksu_setup_stack_chk_guard;\\n"
+        "mov x30, x19;\\n"
+        "b kernelsu_init;\\n");
+}
+''',
+        '''int __init kernelsu_init(void);
+
+__attribute__((no_stack_protector)) int __init kernelsu_init_early(void)
+{
+    ksu_setup_stack_chk_guard();
+    return kernelsu_init();
+}
+''',
+        "GCC arm64 stack protector bootstrap",
+    )
+
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))
     append_once(drivers / "Makefile", "CONFIG_KSU", "obj-$(CONFIG_KSU) += kernelsu/")
@@ -235,6 +276,8 @@ def build_variant(kernel: Path, base_config: Path, output_dir: Path, variant: st
 
     make = ["make", f"O={output_dir}", "ARCH=arm64",
             "CROSS_COMPILE=aarch64-linux-gnu-"]
+    if shutil.which("ccache"):
+        make.append("CC=ccache aarch64-linux-gnu-gcc")
     run(make + ["olddefconfig"], cwd=kernel)
     run(make + [f"-j{jobs}", "Image", "modules"], cwd=kernel)
 

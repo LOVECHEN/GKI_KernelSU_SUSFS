@@ -85,6 +85,15 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 根因是固定到了未带紧随其后的 build-fix 的 `f931d3c3` merge commit。
 - 处理：Android common 固定点更新为直接修复提交 `60080b53`，继续由 GitHub Actions 重跑验证。
 
+### 第二轮：`40098156407`
+
+- 固定到 `60080b53` 后运行约 18 分钟，首轮的 `rotate_necessary` 错误不再出现，公共基线修复有效。
+- 编译已进入 SukiSU r2 的 `drivers/kernelsu/core/init.c`。
+- Linux 4.19 尚未提供 `MODULE_IMPORT_NS`；该 namespace 在 4.19 也不存在，因此兼容层对旧内核将该声明置空。
+- SukiSU 为 A12/5.10 LKM 准备的 arm64 `naked` canary bootstrap 由 Clang 语义实现，但 MuMu 原版 config/工具链是 GCC 12；GCC 忽略 arm64 `naked` 并把无返回路径视为错误。
+- 处理：使用 `no_stack_protector` 普通 C 包装先初始化 `__stack_chk_guard`，再调用并返回 `kernelsu_init()`；语义仍是进入带 stack protector 的主体前完成 canary 初始化。
+- Actions 增加持久化 `ccache`，实际编译仍只在 GitHub 执行，后续兼容迭代复用已编对象。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

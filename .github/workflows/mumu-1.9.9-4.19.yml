@@ -37,11 +37,24 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            bc bison build-essential cpio flex git kmod libelf-dev libssl-dev \
+            bc bison build-essential ccache cpio flex git kmod libelf-dev libssl-dev \
             python3 rsync gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
+      - name: Restore compiler cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ccache
+          key: mumu-419-${{ runner.os }}-${{ hashFiles('.github/workflows/scripts/mumu_419_builder.py') }}
+          restore-keys: |
+            mumu-419-${{ runner.os }}-
+
       - name: Build MuMu SukiSU artifacts
+        env:
+          CCACHE_DIR: /home/runner/.cache/ccache
         run: |
+          ccache --max-size=4G
+          ccache --zero-stats
+          trap 'ccache --show-stats' EXIT
           python3 .github/workflows/scripts/mumu_419_builder.py \
             --source-root "$GITHUB_WORKSPACE/mumu-source" \
             --workspace "$RUNNER_TEMP/mumu-419" \
