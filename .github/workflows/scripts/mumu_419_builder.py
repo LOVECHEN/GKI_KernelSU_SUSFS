@@ -970,6 +970,15 @@ static bool set_type_state(struct policydb *db, const char *type_name, bool perm
         "Linux 4.19 min/max definitions",
     )
     replace_once(
+        checkout / "kernel/supercall/dispatch.c",
+        "#include <linux/mm.h>\n",
+        '''#include <linux/mm.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task.h>
+''',
+        "Linux 4.19 task and process-group declarations",
+    )
+    replace_once(
         checkout / "kernel/infra/su_mount_ns.c",
         "#include <uapi/linux/mount.h>\n",
         "",

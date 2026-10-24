@@ -189,6 +189,11 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 4.19 SELinux policy 容器兼容已全部通过编译，构建继续推进到 `sulog/event.c`。
 - 新版 SukiSU 直接包含 `linux/minmax.h`，而 Linux 4.19 尚未拆出该头文件；改用各版本均存在的 `linux/kernel.h` 提供同一组 `min`/`max` 定义。
 
+### 第十八轮：`40113072256`
+
+- `linux/kernel.h` 兼容已通过，编译继续推进到 `supercall/dispatch.c`。
+- `do_set_init_pgrp()` 使用的 `tasklist_lock`/`init_task` 在 4.19 由 `linux/sched/task.h` 声明，`task_pgrp()`/`task_session()` 由 `linux/sched/signal.h` 声明；显式包含这两个头文件，不改原进程组与会话判定逻辑。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
