@@ -11,8 +11,8 @@ GitHub Actions. It is intentionally not part of the generic 5.10+ GKI matrix.
   (`Merge 4.19.195 into android-4.19-stable`).
 - MuMu source snapshot: `LOVECHEN/mumu-neutralize` commit
   `19380722db94c5b7d0a1a27304d12e69ad5629f3`.
-- SukiSU prototype: `SukiSU-Ultra/SukiSU-Ultra` commit
-  `22561329c04479b7985391764125a3a362170df0`.
+- SukiSU stable build: `v4.2.1-r2`, commit
+  `d6b36700f3bd0a4c1585549b470dd30bb8774534`.
 - KernelPatch reference: `SukiSU-Ultra/SukiSU_KernelPatch_patch` commit
   `e60c6cfd5cea87cccf9adb7e4d4ba583702d443c`.
 - KPM template reference: `liankong233/KPM-Build-Anywhere` commit
@@ -56,6 +56,12 @@ GitHub Actions. It is intentionally not part of the generic 5.10+ GKI matrix.
 3. KernelPatch/KPM tooling: kept as an independent image-patching and KPM
    development path. `KPM-Build-Anywhere` builds KPM payloads; it does not
    integrate SukiSU by itself.
+
+The dedicated GitHub Actions entry is
+`.github/workflows/mumu-1.9.9-4.19.yml`. It checks out the private MuMu source
+at the pinned commit through the read-only `MUMU_SOURCE_SSH_KEY` deploy key,
+verifies the config and reconstructed `sched.h` SHA256 values, and builds both
+artifacts by default.
 
 ## Local prototype
 

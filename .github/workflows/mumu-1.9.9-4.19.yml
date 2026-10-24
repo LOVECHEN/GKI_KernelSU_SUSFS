@@ -1,0 +1,64 @@
+name: MuMu 1.9.9 Linux 4.19.195
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '构建目标'
+        required: true
+        type: choice
+        options:
+          - all
+          - lkm
+          - image
+        default: all
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout build repository
+        uses: actions/checkout@v6
+
+      - name: Checkout pinned private MuMu source
+        uses: actions/checkout@v6
+        with:
+          repository: LOVECHEN/mumu-neutralize
+          ref: 19380722db94c5b7d0a1a27304d12e69ad5629f3
+          ssh-key: ${{ secrets.MUMU_SOURCE_SSH_KEY }}
+          path: mumu-source
+          persist-credentials: false
+
+      - name: Install kernel build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential cpio flex git kmod libelf-dev libssl-dev \
+            python3 rsync gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+      - name: Build MuMu SukiSU artifacts
+        run: |
+          python3 .github/workflows/scripts/mumu_419_builder.py \
+            --source-root "$GITHUB_WORKSPACE/mumu-source" \
+            --workspace "$RUNNER_TEMP/mumu-419" \
+            --artifacts "$GITHUB_WORKSPACE/artifacts" \
+            --target "${{ inputs.target }}"
+
+      - name: Show artifact metadata
+        run: |
+          file artifacts/*
+          cat artifacts/SHA256SUMS.txt
+          if compgen -G 'artifacts/*.ko' >/dev/null; then
+            modinfo artifacts/*.ko
+          fi
+
+      - name: Upload MuMu artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: mumu-1.9.9-linux-4.19.195-sukisu-r2-${{ inputs.target }}
+          path: artifacts/*
+          if-no-files-found: error

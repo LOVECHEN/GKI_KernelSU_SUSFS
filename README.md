@@ -46,6 +46,13 @@ python3 build.py --matrix android14-6.1
 
 MuMuPlayer 1.9.9 的 `4.19.195` 是非 GKI 且修改过私有 `task_struct` ABI，不能伪装成 5.10 矩阵行。它的 SukiSU LKM 和内置 KPM Image 路线单独记录在 [MuMu 4.19 WIP](docs/mumu-1.9.9-4.19-wip.md)。
 
+`MuMu 1.9.9 Linux 4.19.195` workflow 使用只读 deploy key 拉取私有 MuMu 源码，默认同时构建：
+
+- `kernelsu-mumu-1.9.9-4.19.195-r2.ko`：匹配 MuMu 私有 `task_struct` ABI 的 SukiSU LKM。
+- `Image-mumu-1.9.9-4.19.195-sukisu-r2-kpm`：`CONFIG_KSU=y` + `CONFIG_KPM=y` 的内置版 Image。
+
+通用 GKI 和 MuMu 工作流的稳定通道均锁定 SukiSU `v4.2.1-r2` commit `d6b36700f3bd0a4c1585549b470dd30bb8774534`；只有选择 `Dev(开发)` 时才跟随 `main`。
+
 ## 上游与参考
 
 - [SukiSU-Ultra/SukiSU_KernelPatch_patch](https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch)

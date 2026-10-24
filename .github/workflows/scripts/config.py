@@ -60,6 +60,9 @@ class KSUVersion(Enum):
     DEV = "Dev(开发)"
 
 
+KSU_STABLE_COMMIT = "d6b36700f3bd0a4c1585549b470dd30bb8774534"
+
+
 ANDROID_KERNEL_MAP = {
     AndroidVersion.ANDROID12: [KernelVersion.KERNEL_5_10],
     AndroidVersion.ANDROID13: [KernelVersion.KERNEL_5_10, KernelVersion.KERNEL_5_15],
@@ -129,6 +132,8 @@ class BuildConfig:
     susfs_branch: Optional[str] = None
 
     def __post_init__(self):
+        if not self.kernelsu_commit and self.kernelsu_version == KSUVersion.STABLE.value:
+            self.kernelsu_commit = KSU_STABLE_COMMIT
         self._validate_android_version()
         self._validate_kernel_version()
         self._validate_kernel_android_compat()
