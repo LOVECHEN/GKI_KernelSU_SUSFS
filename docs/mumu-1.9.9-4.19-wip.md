@@ -1,6 +1,8 @@
-# MuMuPlayer 1.9.9 / Linux 4.19.195 SukiSU 构建记录（WIP）
+# MuMuPlayer 1.9.9 / Linux 4.19.195 SukiSU 构建记录
 
-本文记录 MuMuPlayer 1.9.9 私有 `4.19.195` 内核接入 SukiSU Ultra、LKM 与 KPM 的当前状态。MuMu 是修改过私有 ABI 的非 GKI 内核，不能伪装成 Android 12 / 5.10 的通用 GKI 矩阵项。
+> 当前状态：已完成。GitHub Actions [run 40119403985](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40119403985) 已同时生成并校验 SukiSU Ultra r2 LKM 和内置 KPM Image。
+
+本文记录 MuMuPlayer 1.9.9 私有 `4.19.195` 内核接入 SukiSU Ultra、LKM 与 KPM 的完整过程。MuMu 是修改过私有 ABI 的非 GKI 内核，不能伪装成 Android 12 / 5.10 的通用 GKI 矩阵项。
 
 ## 构建原则
 
@@ -19,7 +21,7 @@
 | 内核 | `4.19.195-android-arm64-gedae1315d023` |
 | Android common 公共基线 | `60080b53629d749f14cf6981b1602de6c19dd46e` |
 | MuMu 私有源码 | `LOVECHEN/mumu-neutralize@19380722db94c5b7d0a1a27304d12e69ad5629f3` |
-| SukiSU Ultra | `v4.2.1-r2@d6b36700f3bd0a4c1585549b470dd30bb8774534`，管理器版本码 `41068` |
+| SukiSU Ultra | `v4.2.1-r2@d6b36700f3bd0a4c1585549b470dd30bb8774534`，管理器版本码 `41068`，内核版本码 `41074` |
 | KernelPatch 参考 | `SukiSU-Ultra/SukiSU_KernelPatch_patch@e60c6cfd5cea87cccf9adb7e4d4ba583702d443c` |
 | KPM 模板参考 | `liankong233/KPM-Build-Anywhere@e26d77c8d6d38abcf7340a16a9b809660b9e78f4` |
 
@@ -40,6 +42,16 @@ Android common 的 `f931d3c324845b1be4337d27b565351fb581f206` 是合入 Linux 4.
 3. `SHA256SUMS.txt`：同一次 Actions 构建生成的产物校验值。
 
 `KPM-Build-Anywhere` 用于构建 KPM payload，不负责把 SukiSU 接入内核；KernelPatch/KPM 工具链仍作为独立的镜像补丁和模块开发路线保留。
+
+## 已验证产物
+
+| 文件 | 字节数 | SHA256 |
+| --- | ---: | --- |
+| `kernelsu-mumu-1.9.9-4.19.195-r2.ko` | 6,862,416 | `f250c4a25423ef4b028c3101c247deb0f41180d337517ccc4daedb5c1ba27248` |
+| `Image-mumu-1.9.9-4.19.195-sukisu-r2-kpm` | 25,336,320 | `8ec99f55d8588b963a0a8c50033998a2d6a7e1758e495ff69a136e613b667647` |
+| `SHA256SUMS.txt` | 207 | 同时记录上述两个校验值 |
+
+可直接从 [MuMu 1.9.9 Linux 4.19.195 · SukiSU r2 Release](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/releases/tag/mumu-1.9.9-4.19.195-sukisu-r2) 下载。Release tag 指向产物实际构建提交 `6238ff894ca6636b9a3e0cad3276dc742cf72ff3`。
 
 ## MuMu 专用输入
 
@@ -224,6 +236,14 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - KPM 的用户指针检查已通过，新失败点仅为 `super_access.c` 在 GNU89 模式下不允许 `for (size_t i = ...)` 形式。
 - 5 处循环变量前置声明，循环边界与算法不变。
 - 同时修正 `sukisu_super_access()` 内层遍历命中成员后却用外层索引 `i` 取 offset/size 的 r2 错误，改为实际命中的 `i1`。
+
+### 第二十四轮：`40119403985`（成功）
+
+- LKM 和内置 KPM Image 均构建成功，整个 job 用时约 15 分 31 秒，其中编译步骤用时约 14 分 30 秒。
+- LKM 有 247 个需由 SukiSU `ksuinit` 手工重定位的未定义符号，构建器已确认它们全部存在于同轮 `vmlinux`，没有遗留错误符号。
+- `.ko` 为 AArch64 ELF64 可重定位模块，`vermagic` 为 `4.19.195-android-arm64-gedae1315d023+ SMP preempt mod_unload aarch64`，模块名为 `kernelsu`。
+- Image 为 4K page 的 ARM64 Linux kernel boot Image；字符串校验同时命中 KPM 接口和 `KernelSU: welcome to KernelSU version 41074, package name com.sukisu.ultra`。
+- Actions artifact 名为 `mumu-1.9.9-linux-4.19.195-sukisu-r2-all`，artifact ID 为 `12571281566`；正式下载使用上方独立 Release。
 
 ## 仓库结构与来源关系
 
