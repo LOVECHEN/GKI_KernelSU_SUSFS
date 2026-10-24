@@ -265,6 +265,19 @@ __attribute__((no_stack_protector)) int __init kernelsu_init_early(void)
             content.replace("strncpy_from_user_nofault", "strncpy_from_unsafe_user"),
             encoding="utf-8",
         )
+    ksud_integration = checkout / "kernel/runtime/ksud_integration.c"
+    replace_once(
+        ksud_integration,
+        "copy_from_user_nofault(&size, st_size_ptr, sizeof(long))",
+        "probe_user_read(&size, st_size_ptr, sizeof(long))",
+        "Linux 4.19 nofault user read",
+    )
+    replace_once(
+        ksud_integration,
+        "copy_to_user_nofault(st_size_ptr, &new_size, sizeof(long))",
+        "probe_user_write(st_size_ptr, &new_size, sizeof(long))",
+        "Linux 4.19 nofault user write",
+    )
     replace_once(
         checkout / "kernel/hook/arm64/patch_memory.c",
         "copy_to_kernel_nofault(map, src, len)",

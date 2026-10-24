@@ -159,6 +159,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - Linux 上游标签确认该字段从 5.7 才加入。MuMu 4.19 已能编译同一函数中针对 `vdso_data` 和 `vdso_default` 的写入路径。
 - 兼容层仅对 `>= 5.7` 编译 `curr_clocksource->vdso_clock_mode` 写入；4.19 保留其余 vDSO 数据更新、CPU capability 清理和 CPU ID 伪装逻辑。
 
+### 第十三轮：`40109099277`
+
+- clocksource 字段边界修复已通过，唯一新错误为 `runtime/ksud_integration.c` 使用较新的 `copy_from_user_nofault` 和 `copy_to_user_nofault` 名称。
+- MuMu 固定的 Android common 4.19 源码已提供旧名称 `probe_user_read` 与 `probe_user_write`，参数顺序、长度参数及成功返回 `0` 的约定均一致。
+- 两处调用回退到 4.19 名称，保留 fstat 后调整注入 rc 长度的完整逻辑。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
