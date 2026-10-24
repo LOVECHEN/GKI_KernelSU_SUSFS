@@ -79,11 +79,42 @@ contains the older-kernel shims.
 
 `LOVECHEN/GKI_KernelSU_SUSFS` is a direct fork of
 `ShirkNeko/GKI_KernelSU_SUSFS`; the network source is
-`WildKernels/GKI_KernelSU_SUSFS`. The current ShirkNeko repository has since
-been rewritten around `.github/workflows/scripts/*.py` and
-`config/matrix.json`, while this fork retains and extends the older reusable
-workflow plus composite-action architecture. Do not merge the rewritten tree
-wholesale. Add MuMu as an isolated 4.19 workflow after the prototype builds.
+`WildKernels/GKI_KernelSU_SUSFS`.
+
+The merge base between `origin/main` and `shirk/main` is
+`814c5c22afbaa707c50a7573ec4edc338e80004a` (2026-08-27). That commit is also
+the current `shirk/main`; `origin/main` is 2,337 commits ahead and Shirk is zero
+commits ahead. Therefore Shirk did not replace this fork with a newer layout.
+This fork moved away from Shirk's compact Python builder after the fork point.
+
+### Shirk layout at the fork point
+
+- 14 tracked files and three top-level entries: `.github`, `README.md`, and
+  `hmbird_patch.c`.
+- Two composite actions, two primary workflows, one `config/matrix.json`, and
+  seven Python scripts under `.github/workflows/scripts/`.
+- A `BuildConfig`-driven Python build pipeline covering Android 12 through 15
+  and kernel 5.10 through 6.6.
+- The README explicitly excludes non-GKI kernels, so this layout is not a
+  direct MuMu 4.19 build solution.
+
+### Current fork layout
+
+- 111 tracked files, including `config/`, `docs/`, licensing and provenance
+  material in addition to `.github`.
+- 48 composite actions for setup, pinning, cache, SUSFS, BTF, root-framework
+  integration, device patches, build and packaging.
+- Reusable preparation/build/manager/release/validation workflows and
+  per-family JSON configuration from Android 12 / 5.10 through Android 17 /
+  6.18.
+- Compared with Shirk's current tree: 107 files added, 10 removed and three
+  modified. The old Python builder, two monolithic workflows and single matrix
+  file were removed in favor of the modular WildKernels-style pipeline.
+
+Do not merge or restore the Shirk tree wholesale. Its simpler Python builder is
+useful as a reference, but it is still a 5.10+ GKI builder. Add MuMu as an
+isolated `mumu-1.9.9-4.19.yml` workflow with its exact source/config/header
+inputs so the existing GKI matrix remains unchanged.
 
 ## Cancelled experiment
 
