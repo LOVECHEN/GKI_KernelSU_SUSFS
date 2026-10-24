@@ -387,6 +387,15 @@ static int ksu_wrapper_dedupe_file_range(struct file *file_in, loff_t pos_in, st
         "Linux 4.19 native seccomp syscall count",
     )
     replace_once(
+        checkout / "kernel/policy/app_profile.c",
+        "    atomic_set(&current->seccomp.filter_count, 0);\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+    atomic_set(&current->seccomp.filter_count, 0);
+#endif
+''',
+        "Linux 4.19 seccomp state layout",
+    )
+    replace_once(
         checkout / "kernel/infra/su_mount_ns.c",
         "#include <uapi/linux/mount.h>\n",
         "",

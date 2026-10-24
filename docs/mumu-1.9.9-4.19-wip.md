@@ -147,6 +147,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - `policy/allowlist.c` 的错误为 4.19 尚无 `TWA_RESUME` 枚举、缺少声明 `put_task_struct` 的 `linux/sched/task.h`，以及尚无 `fallthrough` 标识符。
 - 4.19 的 `task_work_add` 第三参数是 `bool`，因此 `TWA_RESUME` 回退为 `true`；同样使用该枚举的 `supercall.c` 一并适配。唯一 switch 贯穿改用 GCC 支持的 `/* fall through */` 注释。
 
+### 第十一轮：`40107834312`
+
+- task-work 的三个 4.19 兼容点均已通过，增量编译继续进入 `policy/app_profile.c`。
+- 唯一新错误为 `struct seccomp` 没有 `filter_count`。Linux 上游标签确认该字段从 5.9 才出现，4.19 的结构只有 `mode` 与 `filter`。
+- 兼容层仅在 `>= 5.9` 清零 `filter_count`；4.19 仍按原逻辑清除 `TIF_SECCOMP`、置空 `filter` 并调用 `seccomp_filter_release()`，不改变旧内核释放路径。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
