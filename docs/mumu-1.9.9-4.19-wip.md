@@ -116,6 +116,32 @@ useful as a reference, but it is still a 5.10+ GKI builder. Add MuMu as an
 isolated `mumu-1.9.9-4.19.yml` workflow with its exact source/config/header
 inputs so the existing GKI matrix remains unchanged.
 
+### Matrix and private-target compatibility
+
+Shirk's batch workflow reads 19 public targets from
+`.github/workflows/config/matrix.json`: Android 12 / 5.10, Android 13 / 5.15,
+Android 14 / 6.1 and Android 15 / 6.6. The JSON is not its only source of
+truth: `build.py` duplicates the matrix in `DEFAULT_BUILD_MATRIX` and currently
+contains Android 13 / 5.15.189 while the JSON does not. Any reuse should remove
+this duplication before adding targets.
+
+Private targets fall into three different classes:
+
+1. Another monthly sublevel on an already supported Google GKI branch can be
+   added as a matrix row after verifying that the manifest branch exists.
+2. Another GKI family or an exact device kernel, such as the existing
+   AndroMeld Android 16 / 6.12.74 target, also needs version validation, source
+   checkout, build-system and packaging support. This fork already passes an
+   exact `source_commit`, `stock_config_path` and `build_from_stock_config`
+   through its modular workflow.
+3. MuMu 1.9.9 / 4.19.195 is non-GKI and changes the private task ABI. It needs a
+   separate source/config/header backend and separate LKM/image artifacts; a
+   `matrix.json` row alone cannot support it.
+
+If any source or patch repository is private, repository URL/ref and checkout
+credentials must be explicit workflow inputs or secrets rather than the public
+URLs hard-coded by Shirk's `config.py`.
+
 ## Cancelled experiment
 
 Workflow run `40093890646` built a generic Android 12 / 5.10 image before the
