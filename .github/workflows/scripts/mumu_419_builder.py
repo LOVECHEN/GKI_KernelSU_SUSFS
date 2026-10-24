@@ -392,6 +392,48 @@ static int ksu_wrapper_dedupe_file_range(struct file *file_in, loff_t pos_in, st
         "",
         "Linux 4.19 mount flags header",
     )
+    pkg_observer = checkout / "kernel/manager/pkg_observer.c"
+    replace_once(
+        pkg_observer,
+        '''static int ksu_handle_inode_event(struct fsnotify_mark *mark, u32 mask, struct inode *inode, struct inode *dir,
+                                  const struct qstr *file_name, u32 cookie)
+{
+    if (!file_name)
+        return 0;
+    if (mask & FS_ISDIR)
+        return 0;
+    if (file_name->len == 13 && !memcmp(file_name->name, "packages.list", 13)) {
+        pr_info("packages.list detected: %d\\n", mask);
+        ksu_defer_track_throne();
+    }
+    return 0;
+}
+
+static const struct fsnotify_ops ksu_ops = {
+    .handle_inode_event = ksu_handle_inode_event,
+};
+''',
+        '''static int ksu_handle_event(struct fsnotify_group *group, struct inode *inode, u32 mask, const void *data,
+                            int data_type, const unsigned char *file_name, u32 cookie,
+                            struct fsnotify_iter_info *iter_info)
+{
+    if (!file_name)
+        return 0;
+    if (mask & FS_ISDIR)
+        return 0;
+    if (strlen(file_name) == 13 && !memcmp(file_name, "packages.list", 13)) {
+        pr_info("packages.list detected: %d\\n", mask);
+        ksu_defer_track_throne();
+    }
+    return 0;
+}
+
+static const struct fsnotify_ops ksu_ops = {
+    .handle_event = ksu_handle_event,
+};
+''',
+        "Linux 4.19 fsnotify callback",
+    )
 
     drivers = kernel / "drivers"
     (drivers / "kernelsu").symlink_to(Path("../KernelSU/kernel"))

@@ -134,6 +134,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 唯一新错误为 `infra/su_mount_ns.c` 包含 4.19 不存在的 `uapi/linux/mount.h`。
 - 该文件使用的 `CLONE_NEWNS`、`MS_PRIVATE`、`MS_REC` 已由现有 4.19 头链提供；删除多余的新版 mount UAPI include，不复制头文件常量。
 
+### 第九轮：`40105281921`
+
+- mount flags 头修复通过，compiler cache 命中 4242/4246，命中率 `99.91%`。
+- 唯一新错误为 `manager/pkg_observer.c` 使用新版 `.handle_inode_event` fsnotify 回调。
+- 4.19 仍使用 `.handle_event`，文件名参数为 NUL 结尾的 `unsigned char *`；兼容层按 4.19 的完整签名接收事件，保持原有 `packages.list` 长度和内容判定以及 task-work 延迟处理逻辑。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
