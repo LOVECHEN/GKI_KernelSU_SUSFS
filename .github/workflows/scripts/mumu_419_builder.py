@@ -1226,7 +1226,30 @@ def build_variant(kernel: Path, base_config: Path, output_dir: Path, variant: st
     if shutil.which("ccache"):
         make.append("CC=ccache aarch64-linux-gnu-gcc")
     run(make + ["olddefconfig"], cwd=kernel)
-    run(make + [f"-j{jobs}", "Image", "modules"], cwd=kernel)
+    build = make + [f"-j{jobs}", "Image", "modules"]
+    if variant == "lkm":
+        # SukiSU's loader resolves non-exported symbols against /proc/kallsyms
+        # before init_module, so the module intentionally retains undefineds.
+        build.append("KBUILD_MODPOST_WARN=1")
+    run(build, cwd=kernel)
+
+    if variant == "lkm":
+        module = output_dir / "drivers/kernelsu/kernelsu.ko"
+        vmlinux = output_dir / "vmlinux"
+        undefined = {
+            line.split()[0]
+            for line in run(["aarch64-linux-gnu-nm", "-u", "-P", module], capture=True).stdout.splitlines()
+            if line.split()
+        }
+        defined = {
+            line.split()[0]
+            for line in run(["aarch64-linux-gnu-nm", "--defined-only", "-P", vmlinux], capture=True).stdout.splitlines()
+            if line.split()
+        }
+        missing = sorted(undefined - defined)
+        if missing:
+            raise RuntimeError("LKM symbols absent from vmlinux: " + ", ".join(missing))
+        print(f"verified {len(undefined)} LKM symbols against vmlinux", flush=True)
 
 
 def collect_artifacts(kernel: Path, workspace: Path, artifacts: Path, target: str):

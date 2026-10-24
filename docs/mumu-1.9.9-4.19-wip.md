@@ -200,6 +200,13 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - 4.19 用 `hashtab_search(symtab->table, name)` 查符号，并由 `sidtab_search()` 直接返回 `struct context *`；旧分支直接复用 context-to-string 转换，新分支仍保留 `sidtab_entry` 的字符串缓存。
 - type bounds 和 access-vector 计算的 type/attribute 索引在 4.19 继续使用 `flex_array_get_ptr()`/`flex_array_get()`，5.1+ 路径保持普通数组访问。
 
+### 第二十轮：`40114952691`
+
+- SukiSU r2 全部源码已在 4.19 上通过编译，同轮的 `vmlinux` 与内核 `Image` 均已生成；失败点只剩 LKM 的 `MODPOST`。
+- SukiSU r2 的 LKM 故意保留对非导出内核符号的引用，官方 `ksuinit` 在加载前从 `/proc/kallsyms` 解析地址并将 ELF 符号改成 `SHN_ABS`；因此不能把这类引用强行改成内核导出。
+- LKM 构建单独使用 `KBUILD_MODPOST_WARN=1` 保留这些符号，随后在 GitHub runner 上用 `aarch64-linux-gnu-nm` 逐一验证它们均存在于同轮 `vmlinux`。内置 KPM `Image` 不使用该放宽。
+- 该 `.ko` 必须由 SukiSU 管理器/`ksuinit` 的手工重定位路径加载，不是给普通 `insmod` 直接加载的通用模块。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。
