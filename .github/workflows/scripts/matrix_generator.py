@@ -19,18 +19,17 @@ def generate_build_matrix() -> list:
             build = {
                 "android": android,
                 "kernel": kernel,
-                "sub_level": cfg["sub_level"],
+                **cfg,
                 "os_patch": cfg["os_patch_level"],
             }
-            if "revision" in cfg:
-                build["revision"] = cfg["revision"]
+            build.pop("os_patch_level", None)
             builds.append(build)
 
     # 按 Android 版本和 Kernel 版本排序
     builds.sort(key=lambda x: (
         int(x["android"].replace("android", "")),
         float(x["kernel"]),
-        x["sub_level"] if x["sub_level"] != "X" else "ZZZZ"  # X (LTS) 排在最后
+        int(x["sub_level"]) if x["sub_level"] != "X" else float("inf")
     ))
 
     return builds
@@ -60,7 +59,7 @@ def generate_classified_matrix() -> dict:
             # 按 sub_level 排序，X (LTS) 排在最后
             sorted_classified[android][kernel] = sorted(
                 classified[android][kernel],
-                key=lambda x: x["sub_level"] if x["sub_level"] != "X" else "ZZZZ"
+                key=lambda x: int(x["sub_level"]) if x["sub_level"] != "X" else float("inf")
             )
 
     return sorted_classified

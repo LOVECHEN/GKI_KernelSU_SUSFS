@@ -2,11 +2,12 @@ import os
 import subprocess
 import logging
 import re
+import shutil
 from pathlib import Path
 from typing import Optional, Callable
 from dataclasses import dataclass, field
 
-from config import (BuildConfig, KSU_REPO_CONFIG, SUSFS_REPO_CONFIG, SUKISU_PATCH_REPO_CONFIG,
+from config import (BuildConfig, KSU_REPO_CONFIG, SUKISU_PATCH_REPO_CONFIG,
                    ANYKERNEL_CONFIG, KERNEL_PATCHES_CONFIG, BBG_CONFIG, TOOLCHAIN_CONFIG,
                    LEGACY_FIXES, OP8E_PATCH_URL, KPM_PATCH_URL)
 
@@ -58,11 +59,9 @@ class ShellCommand:
 
 
 class KernelBuilder:
-    KERNEL_CONFIG_TEMPLATE = """
+    BASE_KERNEL_CONFIG = """
 # === KernelSU Config ===
 CONFIG_KSU=y
-CONFIG_KPM=y
-CONFIG_KSU_SUSFS_SUS_SU=n
 
 # === TMPFS Config ===
 CONFIG_TMPFS_XATTR=y
@@ -80,8 +79,11 @@ CONFIG_NET_SCH_FQ=y
 CONFIG_TCP_CONG_BIC=n
 CONFIG_TCP_CONG_WESTWOOD=n
 CONFIG_TCP_CONG_HTCP=n
+"""
 
+    SUSFS_KERNEL_CONFIG = """
 # === SUSFS Config ===
+CONFIG_KSU_SUSFS_SUS_SU=n
 CONFIG_KSU_SUSFS=y
 CONFIG_KSU_SUSFS_SUS_MAP=y
 CONFIG_KSU_SUSFS_SUS_MOUNT=y
@@ -105,9 +107,11 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
         self.workspace = Path(workspace)
         self.shell = ShellCommand(cwd=workspace)
         self.env = os.environ.copy()
+        self.repo_root = Path(__file__).resolve().parents[3]
         self.work_dir = self.workspace / config.config_name
         self.work_dir.mkdir(parents=True, exist_ok=True)
-        self.susfs_dir = self.workspace / "susfs4ksu"
+        susfs_suffix = re.sub(r"[^A-Za-z0-9_.-]", "-", config.kernel_branch)
+        self.susfs_dir = self.workspace / f"susfs4ksu-{susfs_suffix}"
         self.sukisu_patch_dir = self.workspace / "SukiSU_patch"
         self.anykernel_dir = self.workspace / "AnyKernel3"
         self.kernel_patches_dir = self.workspace / "kernel_patches"
@@ -130,33 +134,45 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
         self.shell.cwd = str(path)
 
     def _apply_susfs_commit(self):
-        if not self.config.susfs_commit or not self.susfs_dir.exists():
+        if not self.config.use_susfs or not self.config.susfs_commit or not self.susfs_dir.exists():
             return
         self._chdir(self.susfs_dir)
         if self.config.susfs_commit.startswith("HEAD~"):
-            self._run_cmd("git fetch origin", check=False)
-            self._run_cmd(f"git reset --hard {self.config.susfs_commit}", check=False)
+            self._run_cmd("git fetch origin")
+            self._run_cmd(f"git reset --hard {self.config.susfs_commit}")
         else:
-            self._run_cmd("git fetch origin", check=False)
-            self._run_cmd(f"git checkout {self.config.susfs_commit}", check=False)
+            self._run_cmd(f"git fetch --depth=1 origin {self.config.susfs_commit}")
+            self._run_cmd(f"git checkout --detach {self.config.susfs_commit}")
         self._chdir(self.workspace)
+
+    def _sync_repository(self, name: str, repo_dir: Path, url: str, branch: Optional[str] = None):
+        if not repo_dir.exists():
+            branch_arg = f"--branch {branch} " if branch else ""
+            self._run_cmd(f"git clone --depth=1 {branch_arg}{url} {repo_dir}")
+            return
+        logger.info(f"更新 {name}: {repo_dir}")
+        self._run_cmd(f"git -C {repo_dir} remote set-url origin {url}")
+        if branch:
+            self._run_cmd(f"git -C {repo_dir} fetch --depth=1 origin {branch}")
+            self._run_cmd(f"git -C {repo_dir} checkout -B {branch} FETCH_HEAD")
+        else:
+            self._run_cmd(f"git -C {repo_dir} fetch --depth=1 origin")
+            self._run_cmd(f"git -C {repo_dir} reset --hard FETCH_HEAD")
 
     def clone_repositories(self):
         logger.info("=== 开始克隆仓库 ===")
-        for name, repo_dir, url, branch in [
-            ("SUSFS", self.susfs_dir, SUSFS_REPO_CONFIG['repo_url'], self.config.kernel_branch),
+        repositories = [
             ("SukiSU Patch", self.sukisu_patch_dir, SUKISU_PATCH_REPO_CONFIG['repo_url'], None),
             ("AnyKernel3", self.anykernel_dir, ANYKERNEL_CONFIG['repo_url'], ANYKERNEL_CONFIG['branch']),
             ("Kernel Patches", self.kernel_patches_dir, KERNEL_PATCHES_CONFIG['repo_url'], None),
-        ]:
-            if not repo_dir.exists():
-                cmd = f"git clone {url}"
-                if branch:
-                    cmd += f" -b {branch}"
-                logger.info(f"克隆 {name}...")
-                self._run_cmd(cmd, check=False)
-            else:
-                logger.info(f"{name} 已存在，跳过")
+        ]
+        if self.config.use_susfs:
+            repositories.insert(0, (
+                "SUSFS", self.susfs_dir, self.config.effective_susfs_repo_url,
+                self.config.kernel_branch,
+            ))
+        for name, repo_dir, url, branch in repositories:
+            self._sync_repository(name, repo_dir, url, branch)
         self._apply_susfs_commit()
         logger.info("=== 仓库克隆完成 ===")
 
@@ -193,7 +209,7 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
         formatted_branch = self.config.formatted_branch
 
         self._run_cmd(f"$REPO init --depth=1 -u https://android.googlesource.com/kernel/manifest "
-                     f"-b common-{formatted_branch} --repo-rev=v2.16", check=False)
+                     f"-b common-{formatted_branch} --repo-rev=v2.16")
 
         remote = subprocess.run(f"git ls-remote https://android.googlesource.com/kernel/common {formatted_branch}",
                                shell=True, capture_output=True, text=True).stdout.strip()
@@ -207,13 +223,68 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
 
         self.env["REMOTE_BRANCH"] = remote
         logger.info("同步内核源代码...")
-        self._run_cmd("$REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast", check=False)
+        self._run_cmd("$REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast")
 
         common_dir = self.work_dir / "common"
         if not common_dir.exists():
             raise RuntimeError("repo sync 失败，common 目录不存在")
+        self._checkout_source_commit(common_dir)
         self._apply_legacy_fixes(remote)
         logger.info("=== 内核源代码同步完成 ===")
+
+    def _checkout_source_commit(self, common_dir: Path):
+        if not self.config.source_commit:
+            return
+        expected = self.config.source_commit.lower()
+        logger.info(f"=== 锁定内核源码提交: {expected} ===")
+        self._run_cmd(
+            f"git -C {common_dir} fetch --depth=1 "
+            f"https://android.googlesource.com/kernel/common {expected}"
+        )
+        self._run_cmd(f"git -C {common_dir} checkout --detach FETCH_HEAD")
+        actual = self._run_cmd(
+            f"git -C {common_dir} rev-parse HEAD", capture_output=True
+        ).stdout.strip().lower()
+        if actual != expected:
+            raise RuntimeError(f"内核源码提交不匹配: 期望 {expected}, 实际 {actual}")
+
+    def install_stock_config(self):
+        if not self.config.stock_config_path:
+            return
+        source = (self.repo_root / self.config.stock_config_path).resolve()
+        try:
+            source.relative_to(self.repo_root)
+        except ValueError as exc:
+            raise RuntimeError("stock config 路径超出仓库") from exc
+        if not source.is_file():
+            raise RuntimeError(f"stock config 不存在: {source}")
+
+        common_dir = self.work_dir / "common"
+        config_dir = common_dir / "arch/arm64/configs"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        stock_config = config_dir / "stock_defconfig"
+        shutil.copyfile(source, stock_config)
+        if self.config.build_from_stock_config:
+            shutil.copyfile(source, config_dir / "gki_defconfig")
+
+            content = source.read_text(encoding="utf-8", errors="replace")
+            match = re.search(r'^CONFIG_MODULE_SIG_PROTECT_LIST="([^"]+)"$', content, re.MULTILINE)
+            if match:
+                protect_list = Path(match.group(1))
+                if protect_list.is_absolute() or ".." in protect_list.parts:
+                    raise RuntimeError("CONFIG_MODULE_SIG_PROTECT_LIST 路径不安全")
+                placeholder = common_dir / protect_list
+                placeholder.parent.mkdir(parents=True, exist_ok=True)
+                placeholder.touch(exist_ok=True)
+
+        makefile = common_dir / "kernel/Makefile"
+        if makefile.exists():
+            content = makefile.read_text(encoding="utf-8")
+            old = "$(obj)/config_data: $(KCONFIG_CONFIG) FORCE"
+            new = "$(obj)/config_data: arch/arm64/configs/stock_defconfig FORCE"
+            if old in content:
+                makefile.write_text(content.replace(old, new, 1), encoding="utf-8")
+        logger.info(f"已安装 stock config: {self.config.stock_config_path}")
 
     def _apply_legacy_fixes(self, remote_branch: str = ""):
         av, kv = self.config.android_version, self.config.kernel_version
@@ -250,13 +321,18 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
         self._chdir(self.work_dir)
         setup_url = (f"https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/{self.config.kernelsu_commit}/kernel/setup.sh"
                     if self.config.kernelsu_commit else KSU_REPO_CONFIG["setup_script"])
-        self._run_cmd(f"curl -LSs {setup_url} | bash -s builtin", check=False)
+        self._run_cmd(f"curl -fLSs {setup_url} | bash -s builtin")
         if self.config.kernelsu_commit:
             ksu_dir = self.work_dir / "KernelSU"
             if ksu_dir.exists():
                 self._chdir(ksu_dir)
-                self._run_cmd(f"git checkout {self.config.kernelsu_commit}", check=False)
+                self._run_cmd(f"git fetch --depth=1 origin {self.config.kernelsu_commit}")
+                self._run_cmd(f"git checkout --detach {self.config.kernelsu_commit}")
                 self._chdir(self.work_dir)
+        compat_script = self.repo_root / ".github/workflows/scripts/compat/fix_sukisu_kernel_apis.py"
+        sukisu_kernel = self.work_dir / "KernelSU/kernel"
+        if compat_script.exists() and sukisu_kernel.exists():
+            self._run_cmd(f"python3 {compat_script} {self.work_dir / 'common'} {sukisu_kernel}")
 
     def add_bbg(self):
         if not self.config.use_bbg:
@@ -282,31 +358,49 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
                 f.write(content)
 
     def apply_susfs_patches(self):
+        if not self.config.use_susfs:
+            logger.info("=== 已禁用 SUSFS，跳过补丁 ===")
+            return
         logger.info("=== 应用 SUSFS 补丁 ===")
         self._chdir(self.work_dir)
         common_dir = self.work_dir / "common"
         susfs_patch = self.susfs_dir / "kernel_patches" / self.config.get_susfs_patch_filename()
-        if susfs_patch.exists():
-            self._run_cmd(f"cp {susfs_patch} {common_dir}/", check=False)
+        if not susfs_patch.exists():
+            raise RuntimeError(f"SUSFS 补丁不存在: {susfs_patch}")
+        patch_file = common_dir / self.config.get_susfs_patch_filename()
+        shutil.copyfile(susfs_patch, patch_file)
         for src, dst in [
             (self.susfs_dir / "kernel_patches/fs", common_dir / "fs/"),
             (self.susfs_dir / "kernel_patches/include/linux", common_dir / "include/linux/"),
         ]:
-            if src.exists():
-                self._run_cmd(f"cp -r {src}/* {dst}", check=False)
-        if susfs_patch.exists():
-            patch_file = common_dir / self.config.get_susfs_patch_filename()
-            if patch_file.exists():
-                self._chdir(common_dir)
-                self._run_cmd(f"patch -p1 --fuzz=3 < {patch_file}", check=False)
-                self._chdir(self.work_dir)
+            if not src.exists():
+                raise RuntimeError(f"SUSFS 源目录不存在: {src}")
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+
+        self._chdir(common_dir)
+        result = self._run_cmd(f"patch -p1 --fuzz=3 < {patch_file}", check=False)
+        if result.returncode != 0:
+            rejects = list(common_dir.rglob("*.rej"))
+            task_mmu_reject = common_dir / "fs/proc/task_mmu.c.rej"
+            compat_script = self.repo_root / ".github/workflows/scripts/compat/fix_612_legacy_rollup.py"
+            if (self.config.kernel_version == "6.12" and rejects == [task_mmu_reject]
+                    and compat_script.exists()):
+                reject_text = task_mmu_reject.read_text(encoding="utf-8", errors="replace")
+                if reject_text.count("goto bypass_orig_flow") != 1 or reject_text.count("+bypass_orig_flow:") != 1:
+                    raise RuntimeError("6.12 SUSFS 补丁产生未知 task_mmu reject")
+                self._run_cmd(f"python3 {compat_script} fs/proc/task_mmu.c")
+                task_mmu_reject.unlink()
+            else:
+                reject_names = ", ".join(str(path.relative_to(common_dir)) for path in rejects)
+                raise RuntimeError(f"SUSFS 补丁失败; rejects: {reject_names or 'none'}")
+        self._chdir(self.work_dir)
 
     def apply_sukisu_patches(self):
         logger.info("=== 应用 SukiSU 补丁 ===")
         self._chdir(self.work_dir / "common")
         hooks_patch = self.sukisu_patch_dir / "69_hide_stuff.patch"
         if hooks_patch.exists():
-            self._run_cmd(f"cp {hooks_patch} . && patch -p1 -F 3 < 69_hide_stuff.patch", check=False)
+            self._run_cmd(f"cp {hooks_patch} . && patch -p1 -F 3 < 69_hide_stuff.patch")
 
     def apply_zram_patches(self):
         if not self.config.use_zram:
@@ -328,6 +422,8 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
                 self._run_cmd(f"patch -p1 -F 3 < {p}", check=False)
 
     def apply_task_mmu_fixes(self):
+        if not self.config.use_susfs:
+            return
         logger.info("=== 应用 task_mmu.c 修复 ===")
         self._chdir(self.work_dir / "common")
         task_mmu = Path("fs/proc/task_mmu.c")
@@ -409,20 +505,21 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
             logger.warning(f"配置文件不存在: {config_file}")
             return
 
-        with open(config_file, "a") as f:
-            f.write(self.KERNEL_CONFIG_TEMPLATE)
-            if self.config.kernel_version != "6.6":
-                f.write("CONFIG_KSU_SUSFS_SUS_PATH=y\n")
-            else:
-                f.write("CONFIG_KSU_SUSFS_SUS_PATH=n\n")
+        options = self._parse_config_template(self.BASE_KERNEL_CONFIG)
+        options["CONFIG_KPM"] = "y" if self.config.use_kpm else "n"
+        if self.config.use_susfs:
+            options.update(self._parse_config_template(self.SUSFS_KERNEL_CONFIG))
+            options["CONFIG_KSU_SUSFS_SUS_PATH"] = "n" if self.config.kernel_version == "6.6" else "y"
+        else:
+            options["CONFIG_KSU_SUSFS"] = "n"
+        self._set_config_options(config_file, options)
 
         if self.config.use_zram:
             self._configure_zram()
             self._configure_bazel()
 
         if self.config.set_default_bbr:
-            with open(config_file, "a") as f:
-                f.write("CONFIG_DEFAULT_BBR=y\n")
+            self._set_config_options(config_file, {"CONFIG_DEFAULT_BBR": "y"})
 
         build_config = self.work_dir / "common/build.config.gki"
         if build_config.exists():
@@ -431,6 +528,37 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
             content = content.replace("check_defconfig", "")
             with open(build_config, "w") as f:
                 f.write(content)
+
+    @staticmethod
+    def _parse_config_template(template: str) -> dict:
+        options = {}
+        for line in template.splitlines():
+            line = line.strip()
+            if line.startswith("CONFIG_") and "=" in line:
+                key, value = line.split("=", 1)
+                options[key] = value
+        return options
+
+    @staticmethod
+    def _set_config_options(config_file: Path, options: dict):
+        content = config_file.read_text(encoding="utf-8")
+        lines = content.splitlines()
+        for key, value in options.items():
+            replacement = f"{key}={value}"
+            pattern = re.compile(rf"^(?:{re.escape(key)}=.*|# {re.escape(key)} is not set)$")
+            replaced = False
+            new_lines = []
+            for line in lines:
+                if pattern.match(line):
+                    if not replaced:
+                        new_lines.append(replacement)
+                        replaced = True
+                    continue
+                new_lines.append(line)
+            if not replaced:
+                new_lines.append(replacement)
+            lines = new_lines
+        config_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def _configure_zram(self):
         config_file = self.work_dir / "common/arch/arm64/configs/gki_defconfig"
@@ -503,7 +631,7 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
             with open(mkcompile_h, "w") as f:
                 f.write(content)
 
-        if self.config.kernel_version in ["6.1", "6.6"]:
+        if self.config.kernel_version in ["6.1", "6.6", "6.12", "6.18"]:
             init_makefile = self.work_dir / "common/init/Makefile"
             if init_makefile.exists():
                 with open(init_makefile, "r") as f:
@@ -627,7 +755,7 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
             return False
 
     def patch_kpm_image(self):
-        if not self.config.use_kpm or self.config.kernel_version == "6.6":
+        if not self.config.use_kpm or self.config.kernel_version in ["6.6", "6.12", "6.18"]:
             return
         logger.info("=== 修补 Image 文件 (KPM) ===")
         self._chdir(self.work_dir)
@@ -736,6 +864,7 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
             self.clone_toolchain()
             self.setup_repo_tool()
             self.init_and_sync_kernel()
+            self.install_stock_config()
             self.add_kernel_supatch()
             self.add_kernelsu()
             self.add_bbg()

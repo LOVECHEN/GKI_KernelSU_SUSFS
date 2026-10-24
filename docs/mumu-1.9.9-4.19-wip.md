@@ -28,6 +28,8 @@ GitHub Actions. It is intentionally not part of the generic 5.10+ GKI matrix.
   <https://github.com/SukiSU-Ultra/SukiSU-Ultra>
 - ShirkNeko GKI build-system reference and original fork parent:
   <https://github.com/ShirkNeko/GKI_KernelSU_SUSFS>
+- WildKernels source repository and pre-migration modular workflow reference:
+  <https://github.com/WildKernels/GKI_KernelSU_SUSFS>
 
 ## Confirmed constraints
 
@@ -88,63 +90,61 @@ contains the older-kernel shims.
 
 ## Repository lineage
 
-`LOVECHEN/GKI_KernelSU_SUSFS` is a direct fork of
-`ShirkNeko/GKI_KernelSU_SUSFS`; the network source is
-`WildKernels/GKI_KernelSU_SUSFS`.
+The GitHub repository was originally registered as a fork of
+`ShirkNeko/GKI_KernelSU_SUSFS`, while its pre-migration code had evolved into a
+WildKernels-style modular Actions tree. The exact pre-migration head is retained
+on `backup/wildkernels-2026-10-24`, so changing the primary layout cannot lose
+that implementation.
 
-The merge base between `origin/main` and `shirk/main` is
-`814c5c22afbaa707c50a7573ec4edc338e80004a` (2026-08-27). That commit is also
-the current `shirk/main`; `origin/main` is 2,337 commits ahead and Shirk is zero
-commits ahead. Therefore Shirk did not replace this fork with a newer layout.
-This fork moved away from Shirk's compact Python builder after the fork point.
+Commit `eb74629a` replaced the primary build-system files with ShirkNeko's
+compact Python layout. Subsequent commits port the private matrix features back
+into that model instead of restoring the large composite-action tree. Upstream
+repositories are tracked as ordinary read-only Git remotes (`upstream` and
+`wild`); updates are explicit fetch/merge/cherry-pick operations rather than
+GitHub's fork-sync mechanism.
 
-### Shirk layout at the fork point
+This structure change does not make MuMu 4.19 a GKI target. MuMu still needs an
+isolated backend with its exact source, config and reconstructed header inputs;
+it must not be added as a fake Android 12 / 5.10 matrix row.
 
-- 14 tracked files and three top-level entries: `.github`, `README.md`, and
-  `hmbird_patch.c`.
-- Two composite actions, two primary workflows, one `config/matrix.json`, and
-  seven Python scripts under `.github/workflows/scripts/`.
-- A `BuildConfig`-driven Python build pipeline covering Android 12 through 15
-  and kernel 5.10 through 6.6.
-- The README explicitly excludes non-GKI kernels, so this layout is not a
-  direct MuMu 4.19 build solution.
+### WildKernels versus ShirkNeko
 
-### Current fork layout
+The two repositories share history but are no longer the same implementation:
 
-- 111 tracked files, including `config/`, `docs/`, licensing and provenance
-  material in addition to `.github`.
-- 48 composite actions for setup, pinning, cache, SUSFS, BTF, root-framework
-  integration, device patches, build and packaging.
-- Reusable preparation/build/manager/release/validation workflows and
-  per-family JSON configuration from Android 12 / 5.10 through Android 17 /
-  6.18.
-- Compared with Shirk's current tree: 107 files added, 10 removed and three
-  modified. The old Python builder, two monolithic workflows and single matrix
-  file were removed in favor of the modular WildKernels-style pipeline.
+| Repository | Current reference | Tracked files | Build architecture | Scope |
+| --- | --- | ---: | --- | --- |
+| [WildKernels/GKI_KernelSU_SUSFS](https://github.com/WildKernels/GKI_KernelSU_SUSFS) | `222173a6397e27bcc6461d4600c3ecb5d8ac61da` (2026-10-23) | 108 | Reusable workflows plus many composite actions and per-family JSON files | Broad GKI matrix, multiple root implementations, feature modules, validation and releases |
+| [ShirkNeko/GKI_KernelSU_SUSFS](https://github.com/ShirkNeko/GKI_KernelSU_SUSFS) | `814c5c22afbaa707c50a7573ec4edc338e80004a` (2026-08-27) | 14 | Two workflows backed by a compact Python builder and one `matrix.json` | SukiSU Ultra/SUSFS, selected Android 12-15 GKI targets |
 
-Do not merge or restore the Shirk tree wholesale. Its simpler Python builder is
-useful as a reference, but it is still a 5.10+ GKI builder. Add MuMu as an
-isolated `mumu-1.9.9-4.19.yml` workflow with its exact source/config/header
-inputs so the existing GKI matrix remains unchanged.
+Their merge base is `a834afe0383fe1a5b32a89bb175bbf340be6c8c6`.
+At the recorded heads WildKernels is 2,322 commits ahead of that base and
+ShirkNeko is 200 commits ahead, so neither current head is the other's latest
+revision. "Latest" must identify which implementation is intended.
+
+This repository now uses ShirkNeko's Python layout as the primary build-system
+shape because it is smaller and easier to extend for private targets. The
+pre-migration WildKernels implementation remains preserved on
+`backup/wildkernels-2026-10-24`; exact source commits, stock configs and newer
+kernel-family support are ported into the Python model rather than restoring
+the full composite-action tree.
 
 ### Matrix and private-target compatibility
 
-Shirk's batch workflow reads 19 public targets from
-`.github/workflows/config/matrix.json`: Android 12 / 5.10, Android 13 / 5.15,
-Android 14 / 6.1 and Android 15 / 6.6. The JSON is not its only source of
-truth: `build.py` duplicates the matrix in `DEFAULT_BUILD_MATRIX` and currently
-contains Android 13 / 5.15.189 while the JSON does not. Any reuse should remove
-this duplication before adding targets.
+The migrated builder now reads all 30 targets exclusively from
+`.github/workflows/config/matrix.json`; the duplicate matrix formerly embedded
+in `build.py` has been removed. The matrix covers Android 12 / 5.10 through
+Android 17 / 6.18, including the additional 13/5.10 and 14/5.15 families.
 
 Private targets fall into three different classes:
 
 1. Another monthly sublevel on an already supported Google GKI branch can be
    added as a matrix row after verifying that the manifest branch exists.
-2. Another GKI family or an exact device kernel, such as the existing
-   AndroMeld Android 16 / 6.12.74 target, also needs version validation, source
-   checkout, build-system and packaging support. This fork already passes an
-   exact `source_commit`, `stock_config_path` and `build_from_stock_config`
-   through its modular workflow.
+2. Another GKI family or an exact device kernel, such as AndroMeld Android 16 /
+   6.12.74, also needs version validation, exact source checkout, stock-config
+   installation, build-system and packaging support. Those fields now flow
+   through `BuildConfig` in the Python builder. The 6.12 row also selects
+   Simonpunk's `gki-android16-6.12` SUSFS branch and the retained compatibility
+   adapters.
 3. MuMu 1.9.9 / 4.19.195 is non-GKI and changes the private task ABI. It needs a
    separate source/config/header backend and separate LKM/image artifacts; a
    `matrix.json` row alone cannot support it.
