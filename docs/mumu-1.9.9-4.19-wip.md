@@ -194,6 +194,12 @@ MuMu 已启用 `CONFIG_KALLSYMS=y`、`CONFIG_KALLSYMS_ALL=y`、`CONFIG_KPROBES=y
 - `linux/kernel.h` 兼容已通过，编译继续推进到 `supercall/dispatch.c`。
 - `do_set_init_pgrp()` 使用的 `tasklist_lock`/`init_task` 在 4.19 由 `linux/sched/task.h` 声明，`task_pgrp()`/`task_session()` 由 `linux/sched/signal.h` 声明；显式包含这两个头文件，不改原进程组与会话判定逻辑。
 
+### 第十九轮：`40114098565`
+
+- 进程组声明兼容已通过，错误推进到 r2 新增的 `feature/selinux_hide.c`。
+- 4.19 用 `hashtab_search(symtab->table, name)` 查符号，并由 `sidtab_search()` 直接返回 `struct context *`；旧分支直接复用 context-to-string 转换，新分支仍保留 `sidtab_entry` 的字符串缓存。
+- type bounds 和 access-vector 计算的 type/attribute 索引在 4.19 继续使用 `flex_array_get_ptr()`/`flex_array_get()`，5.1+ 路径保持普通数组访问。
+
 ## 仓库结构与来源关系
 
 本仓库过去在 GitHub 上登记为 `ShirkNeko/GKI_KernelSU_SUSFS` 的 fork，迁移前的代码则已经演化成 WildKernels 风格的模块化 Actions 树。迁移前的精确版本保存在 `backup/wildkernels-2026-10-24`，因此切换主目录结构不会丢失旧实现。

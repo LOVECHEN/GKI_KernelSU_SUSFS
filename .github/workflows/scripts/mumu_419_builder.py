@@ -978,6 +978,140 @@ static bool set_type_state(struct policydb *db, const char *type_name, bool perm
 ''',
         "Linux 4.19 task and process-group declarations",
     )
+    selinux_hide = checkout / "kernel/feature/selinux_hide.c"
+    replace_once(
+        selinux_hide,
+        '''#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+''',
+        '''#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
+#define symtab_search(s, name) hashtab_search((s)->table, name)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+''',
+        "Linux 4.19 SELinux symbol-table lookup",
+    )
+    replace_once(
+        selinux_hide,
+        '''static int sidtab_entry_to_string(struct policydb *p, struct sidtab *sidtab, struct sidtab_entry *entry,
+                                  char **scontext, u32 *scontext_len)
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+static int sidtab_entry_to_string(struct policydb *p, struct sidtab *sidtab, struct sidtab_entry *entry,
+                                  char **scontext, u32 *scontext_len)
+''',
+        "Linux 4.19 SID entry cache modern branch",
+    )
+    replace_once(
+        selinux_hide,
+        '''    return rc;
+}
+
+static int security_sid_to_context_with_policy(struct selinux_policy *policy, u32 sid, char **scontext,
+''',
+        '''    return rc;
+}
+#endif
+
+static int security_sid_to_context_with_policy(struct selinux_policy *policy, u32 sid, char **scontext,
+''',
+        "Linux 4.19 SID entry cache guard",
+    )
+    replace_once(
+        selinux_hide,
+        '''    struct policydb *policydb;
+    struct sidtab *sidtab;
+    struct sidtab_entry *entry;
+    int rc = 0;
+''',
+        '''    struct policydb *policydb;
+    struct sidtab *sidtab;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    struct sidtab_entry *entry;
+#else
+    struct context *context;
+#endif
+    int rc = 0;
+''',
+        "Linux 4.19 SID lookup result type",
+    )
+    replace_once(
+        selinux_hide,
+        '''    // removed: force
+    entry = sidtab_search_entry(sidtab, sid);
+    if (!entry) {
+        pr_err("SELinux: %s:  unrecognized SID %d\\n", __func__, sid);
+        rc = -EINVAL;
+        goto out_unlock;
+    }
+    // removed: only_invalid
+
+    rc = sidtab_entry_to_string(policydb, sidtab, entry, scontext, scontext_len);
+''',
+        '''    // removed: force
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+    entry = sidtab_search_entry(sidtab, sid);
+    if (!entry) {
+        pr_err("SELinux: %s:  unrecognized SID %d\\n", __func__, sid);
+        rc = -EINVAL;
+        goto out_unlock;
+    }
+    // removed: only_invalid
+
+    rc = sidtab_entry_to_string(policydb, sidtab, entry, scontext, scontext_len);
+#else
+    context = sidtab_search(sidtab, sid);
+    if (!context) {
+        pr_err("SELinux: %s:  unrecognized SID %d\\n", __func__, sid);
+        rc = -EINVAL;
+        goto out_unlock;
+    }
+    rc = context_struct_to_string(policydb, context, scontext, scontext_len);
+#endif
+''',
+        "Linux 4.19 SID lookup implementation",
+    )
+    replace_once(
+        selinux_hide,
+        "    source = policydb->type_val_to_struct[scontext->type - 1];\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+    source = policydb->type_val_to_struct[scontext->type - 1];
+#else
+    source = flex_array_get_ptr(policydb->type_val_to_struct_array, scontext->type - 1);
+#endif
+''',
+        "Linux 4.19 source type bounds lookup",
+    )
+    replace_once(
+        selinux_hide,
+        "    target = policydb->type_val_to_struct[tcontext->type - 1];\n",
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+    target = policydb->type_val_to_struct[tcontext->type - 1];
+#else
+    target = flex_array_get_ptr(policydb->type_val_to_struct_array, tcontext->type - 1);
+#endif
+''',
+        "Linux 4.19 target type bounds lookup",
+    )
+    replace_once(
+        selinux_hide,
+        '''    sattr = &policydb->type_attr_map_array[scontext->type - 1];
+    tattr = &policydb->type_attr_map_array[tcontext->type - 1];
+''',
+        '''#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+    sattr = &policydb->type_attr_map_array[scontext->type - 1];
+    tattr = &policydb->type_attr_map_array[tcontext->type - 1];
+#else
+    sattr = flex_array_get(policydb->type_attr_map_array, scontext->type - 1);
+    tattr = flex_array_get(policydb->type_attr_map_array, tcontext->type - 1);
+#endif
+''',
+        "Linux 4.19 access-vector attribute lookup",
+    )
     replace_once(
         checkout / "kernel/infra/su_mount_ns.c",
         "#include <uapi/linux/mount.h>\n",
