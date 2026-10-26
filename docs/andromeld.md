@@ -122,7 +122,7 @@ KernelSU-Next, KernelSU, and BakaSU in
 [workflow run 39873307019](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/39873307019).
 Those three artifacts are build-verified, not runtime-tested on the current
 AndroMeld VM. Their AnyKernel3 ZIPs and matching manager APKs are published in
-the existing [r1 release](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/releases/tag/r1)
+the existing [SukiSU Ultra v4.2.1-r2 (41079) release](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/releases/tag/v4.2.1-r2-41079)
 alongside the runtime-tested SukiSU build; no additional release tag is used.
 
 ## Build One Current LTS Kernel for Every Family
