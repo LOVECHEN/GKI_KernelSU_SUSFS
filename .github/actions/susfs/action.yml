@@ -35,19 +35,6 @@ runs:
         version: ${{ inputs.version }}
         root_flavor: ${{ inputs.root_flavor }}
 
-    - name: Adapt current SukiSU to the AndroMeld SUSFS baseline
-      if: inputs.root_flavor == 'sukisu-ultra' && (inputs.susfs_commit == '9c9f19d8395693327c78df36569b44e94c187b8a' || inputs.susfs_commit == 'acb92d4abc922cac384a207744b2db40281a7c7f')
-      shell: bash
-      working-directory: ${{ github.workspace }}/kernel
-      run: |
-        set -euo pipefail
-        patch="$GITHUB_WORKSPACE/.github/actions/susfs/sukisu-legacy-priority-filter.patch"
-        git -C SukiSU-Ultra apply --check "$patch"
-        git -C SukiSU-Ultra apply "$patch"
-        ! grep -R -q 'CMD_SUSFS_SET_PRIORITY_UID_FILTER\|susfs_parse_priority_app_strings' \
-          SukiSU-Ultra/kernel
-        echo "Disabled only the post-baseline priority UID filter ABI for AndroMeld"
-
     - name: Enable SUSFS for KernelSU (tiann)
       # tiann/KernelSU main does NOT carry SUSFS, so for the kernelsu flavor we
       # apply the enable patch from susfs4ksu onto the KernelSU checkout.
