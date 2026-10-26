@@ -121,6 +121,46 @@ if priority_dispatch in dispatch:
     dispatch_path.write_text(dispatch)
     print("Removed unavailable SUSFS priority-filter command")
 
+# A zero SUSFS SID means the SELinux policy has not populated that cache yet.
+# Never treat an early-boot task whose SID is also zero as a SukiSU domain.
+selinux_path = sukisu / "selinux/selinux.c"
+selinux_source = selinux_path.read_text()
+unguarded_sid_equal = """    if (!tsec) {
+        return false;
+    }
+    return tsec->sid == sid2;
+"""
+guarded_sid_equal = """    if (!tsec || sid2 == 0) {
+        return false;
+    }
+    return tsec->sid == sid2;
+"""
+if unguarded_sid_equal in selinux_source:
+    selinux_source = replace_once(
+        selinux_source,
+        unguarded_sid_equal,
+        guarded_sid_equal,
+        "SUSFS generic zero-SID guard",
+    )
+    print("Guarded generic SUSFS SID comparison before initialization")
+for domain, sid in (
+    ("zygote", "susfs_zygote_sid"),
+    ("zygote_next", "susfs_zygote_next_sid"),
+    ("ksu", "susfs_ksu_sid"),
+    ("init", "susfs_init_sid"),
+):
+    old = f"return unlikely(current_sid() == {sid});"
+    new = f"return unlikely({sid} != 0 && current_sid() == {sid});"
+    if old in selinux_source:
+        selinux_source = replace_once(
+            selinux_source,
+            old,
+            new,
+            f"SUSFS {domain} zero-SID guard",
+        )
+        print(f"Guarded SUSFS {domain} comparison before SID initialization")
+selinux_path.write_text(selinux_source)
+
 # SukiSU 41087 has two CONFIG_KSU_SUSFS-selected ksu_sulog_capture()
 # signatures: SUSFS takes a pointer, while the non-SUSFS path takes a value.
 # Its unconditional pointer macro therefore cannot compile both profiles.
