@@ -21,6 +21,7 @@ Generic kernels built on [Google's GKI sources](https://android.googlesource.com
 ## Features
 
 - **KernelSU / KernelSU-Next / BakaSU / FinaSU / Suki-SU Ultra / KowSU** — root implementations
+- **KPM** — enabled in SukiSU Ultra builds for KernelPatch module loading
 - **susfs4ksu** — root hiding (incl. Ptrace Leak Fix, Unicode Fix)
 - **NoMount / Mountify** — mount metamodules
 - **Baseband Guard** — partition protection
