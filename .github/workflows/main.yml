@@ -252,10 +252,11 @@ jobs:
           # `fake_state` and will fail to link with latest BakaSU; 6.6/6.12 are
           # unaffected. Watch those 5 families for build failures.
           PIN_BAKASU="dac2d186406a0d2b0ce3c67cad5a1fa1adbf9f4d"
-          # SukiSU-Ultra: builtin tip (2026-10-21,
-          # "kernel: switch sig_fallback hook from weak symbol to static_call");
-          # defines fake_state itself, calls the susfs_def.h no_su API -> OK on tips.
-          PIN_SUKISU_ULTRA="05f5cdf082d32bbc651c205ba4bdd1dc66cca7f5"
+          # SukiSU-Ultra v4.2.1-r2 kernel snapshot used by the 41079 manager.
+          # Keep this independent from the userspace pin below: the kernel-side
+          # builtin branch and the complete manager source live at different SHAs.
+          PIN_SUKISU_ULTRA="a864d15ab8984c15bf585fb9e4dfbc6ccc8aaee1"
+          PIN_SUKISU_ULTRA_MANAGER="5b4835bc20a528fd06b2a6c6571a35f9b61cff42"
           # FinaSU: susfs-integrated fork of the tiann restructure; pin tracks
           # the susfs4ksu v2.3 ABI era its supercall dispatch is written against.
           # master tip 3f06a69d (2026-10-21, manager install-page animation;
@@ -343,6 +344,7 @@ jobs:
           emit ksu_commit "$KERNELSU_COMMIT"
           emit bakasu_commit "$BAKASU_COMMIT"
           emit sukisu_ultra_commit "$SUKISU_ULTRA_COMMIT"
+          emit sukisu_ultra_manager_commit "$(pick "$PIN_SUKISU_ULTRA_MANAGER" https://github.com/SukiSU-Ultra/SukiSU-Ultra.git refs/heads/main)"
           # FinaSU ships susfs kernel-side and hard-depends on it (unguarded
           # linux/susfs.h includes), so it is only valid with SUSFS on;
           # susfs-off finasu builds are rejected in build.yml.
@@ -531,7 +533,7 @@ jobs:
                 ;;
               sukisu-ultra)
                 owner="SukiSU-Ultra"; repo="SukiSU-Ultra"; wf="build-manager.yml"
-                stock=$(git ls-remote https://github.com/SukiSU-Ultra/SukiSU-Ultra.git refs/heads/main | awk '{print $1; exit}')
+                stock="${{ steps.resolve.outputs.sukisu_ultra_manager_commit }}"
                 run_id=$(gh api "repos/${owner}/${repo}/actions/workflows/${wf}/runs?head_sha=${stock}&status=success" \
                   --jq '.workflow_runs[0].id // empty')
                 if [[ -z "${run_id}" ]]; then

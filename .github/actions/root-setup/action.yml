@@ -100,6 +100,17 @@ runs:
         fi
         root_version="$(git -C "$directory" describe --tags --always --dirty)"
 
+        # This v4.2.1-r2 kernel snapshot derives KSU_VERSION from the current
+        # remote commit count, so the same immutable source changes version as
+        # upstream grows. Pin it to the matching manager/UAPI build instead.
+        if [ "$flavor" = "sukisu-ultra" ] && \
+           [ "$actual_commit" = "a864d15ab8984c15bf585fb9e4dfbc6ccc8aaee1" ]; then
+          sed -i -E 's/^KSU_VERSION[[:space:]]*:=[[:space:]].*$/KSU_VERSION     := 41079/' \
+            "$directory/kernel/Makefile"
+          grep -q '^KSU_VERSION[[:space:]]*:= 41079$' "$directory/kernel/Makefile"
+          echo "Pinned SukiSU-Ultra kernel UAPI version to 41079"
+        fi
+
         relative_kernel="$(realpath --relative-to="$drivers_dir" "$PWD/$directory/kernel")"
         ln -s "$relative_kernel" "$drivers_dir/kernelsu"
         grep -q 'obj-$(CONFIG_KSU) += kernelsu/' "$drivers_dir/Makefile" ||
