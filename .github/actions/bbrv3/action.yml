@@ -21,6 +21,15 @@ runs:
       run: |
         sed -i 's/CONFIG_IP_SET_MAX/65534/g' net/netfilter/ipset/ip_set_core.c
 
+        # Android 5.10.272 added tcp_min_rcvbuf between one_day_secs and the
+        # obsolete sysctl block. Keep the declaration while restoring the
+        # context expected by the pinned BBRv3 patch.
+        SYSCTL_IPV4=net/ipv4/sysctl_net_ipv4.c
+        if grep -q '^static int tcp_min_rcvbuf = 4096;$' "$SYSCTL_IPV4"; then
+          sed -i '/^static int tcp_min_rcvbuf = 4096;$/d' "$SYSCTL_IPV4"
+          sed -i '/^static u32 u32_max_div_HZ = UINT_MAX \/ HZ;$/i static int tcp_min_rcvbuf = 4096;' "$SYSCTL_IPV4"
+        fi
+
     - name: Apply BBRv3 Patch
       shell: bash
       working-directory: ${{ github.workspace }}/kernel/common
