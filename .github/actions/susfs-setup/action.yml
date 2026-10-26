@@ -35,14 +35,21 @@ runs:
 
         SUSFS_BRANCH="gki-${{ inputs.version }}"
         SUSFS_REPO="https://gitlab.com/simonpunk/susfs4ksu.git"
+        SUSFS_MIRROR="https://github.com/KairoVera/susfs4ksu-mirror.git"
+        SUSFS_COMMIT_INPUT="${{ inputs.susfs_commit }}"
 
         echo "Preparing SUSFS for branch: $SUSFS_BRANCH"
-        echo "Cloning latest from $SUSFS_BRANCH..."
-        retry git clone "$SUSFS_REPO" -b "$SUSFS_BRANCH" susfs4ksu
-
-        if [ -n "${{ inputs.susfs_commit }}" ]; then
-          echo "Checking out SUSFS commit: ${{ inputs.susfs_commit }}"
-          retry git -C "${{ github.workspace }}/susfs4ksu" checkout "${{ inputs.susfs_commit }}"
+        if [ -n "$SUSFS_COMMIT_INPUT" ]; then
+          echo "Fetching pinned SUSFS commit from the SHA-identical GitHub mirror: $SUSFS_COMMIT_INPUT"
+          mkdir -p susfs4ksu
+          git -C susfs4ksu init
+          git -C susfs4ksu remote add origin "$SUSFS_MIRROR"
+          retry git -C susfs4ksu fetch --depth=1 origin "$SUSFS_COMMIT_INPUT"
+          git -C susfs4ksu checkout --detach FETCH_HEAD
+          test "$(git -C susfs4ksu rev-parse HEAD)" = "$SUSFS_COMMIT_INPUT"
+        else
+          echo "Cloning latest from $SUSFS_BRANCH..."
+          retry git clone --depth=1 --single-branch "$SUSFS_REPO" -b "$SUSFS_BRANCH" susfs4ksu
         fi
 
         cd "${{ github.workspace }}/susfs4ksu"
