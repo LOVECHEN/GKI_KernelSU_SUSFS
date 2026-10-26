@@ -53,6 +53,7 @@ jobs:
       - name: Download verified AnyKernel3 release asset
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ inputs.release_tag }}
           ASSET: ${{ matrix.asset }}
         run: |
@@ -88,6 +89,7 @@ jobs:
       - name: Refresh release checksums
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
@@ -96,7 +98,7 @@ jobs:
           rm -f release-assets/SHA256SUMS
           (
             cd release-assets
-            sha256sum ./* > SHA256SUMS
+            sha256sum ./* | sed 's#  \./#  #' > SHA256SUMS
           )
           gh release upload "$RELEASE_TAG" release-assets/SHA256SUMS --clobber
 
