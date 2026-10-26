@@ -42,7 +42,7 @@ Kernel-based su and root access management for Android.
 <details>
 <summary>Which one should I use?</summary>
 
-- **NoMount** — recommended; its metamodule is produced only as a short-lived CI artifact and is not published in public Releases.
+- **NoMount** — recommended kernel-side integration. The public workflow does not build or publish the separate NoMount metamodule.
 - **Mountify** — alternative OverlayFS approach, not bundled — install latest compatible module manually.
 
 </details>

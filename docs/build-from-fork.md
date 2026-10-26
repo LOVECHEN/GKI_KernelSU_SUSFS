@@ -198,7 +198,6 @@ Common artifacts include:
 - `*-BootImages` — AVB-signed `boot.img`, `boot-gz.img`, and `boot-lz4.img` variants generated from the same built `Image`. Android 12 / 5.10 variants retain the certified GKI ramdisk.
 - `*-BuildInfo` — source and artifact provenance, including checksums.
 - Manager APK artifacts — install the manager matching the selected root flavor.
-- `NoMount-Metamodule` — short-lived Actions artifact used for build provenance when applicable. It is not published in public Releases; project-specific copies are archived privately.
 
 To download with GitHub CLI:
 
@@ -210,7 +209,6 @@ gh run download \
   -p '*-BootImages' \
   -p '*-BuildInfo' \
   -p '*.apk' \
-  -p 'NoMount-Metamodule' \
   -D ./artifacts
 ```
 
