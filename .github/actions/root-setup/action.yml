@@ -100,15 +100,21 @@ runs:
         fi
         root_version="$(git -C "$directory" describe --tags --always --dirty)"
 
-        # This v4.2.1-r2 kernel snapshot derives KSU_VERSION from the current
-        # remote commit count, so the same immutable source changes version as
-        # upstream grows. Pin it to the matching manager/UAPI build instead.
-        if [ "$flavor" = "sukisu-ultra" ] && \
-           [ "$actual_commit" = "a864d15ab8984c15bf585fb9e4dfbc6ccc8aaee1" ]; then
-          sed -i -E 's/^KSU_VERSION[[:space:]]*:=[[:space:]].*$/KSU_VERSION     := 41079/' \
+        # SukiSU derives KSU_VERSION from the current remote commit count, so
+        # immutable source snapshots drift away from their paired managers.
+        # Pin every verified snapshot to the build number it was released with.
+        sukisu_build=""
+        if [ "$flavor" = "sukisu-ultra" ]; then
+          case "$actual_commit" in
+            a864d15ab8984c15bf585fb9e4dfbc6ccc8aaee1) sukisu_build=41079 ;;
+            6397fcb5d96e8f4953c71e02c73f8c6800541bff) sukisu_build=41087 ;;
+          esac
+        fi
+        if [ -n "$sukisu_build" ]; then
+          sed -i -E "s/^KSU_VERSION[[:space:]]*:=[[:space:]].*$/KSU_VERSION     := $sukisu_build/" \
             "$directory/kernel/Makefile"
-          grep -q '^KSU_VERSION[[:space:]]*:= 41079$' "$directory/kernel/Makefile"
-          echo "Pinned SukiSU-Ultra kernel UAPI version to 41079"
+          grep -q "^KSU_VERSION[[:space:]]*:= $sukisu_build$" "$directory/kernel/Makefile"
+          echo "Pinned SukiSU-Ultra kernel UAPI version to $sukisu_build"
         fi
 
         relative_kernel="$(realpath --relative-to="$drivers_dir" "$PWD/$directory/kernel")"
