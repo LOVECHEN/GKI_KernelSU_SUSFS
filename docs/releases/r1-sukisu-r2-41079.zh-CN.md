@@ -41,7 +41,7 @@ Performance 补丁保持关闭。该 Full 功能集同样用于 AndroMeld `6.12.
 | 15 | `6.6.144` | `6.6.144-android15-lts-SukiSU-Ultra-AnyKernel3.zip` |
 | 16 | `6.12.96` | `6.12.96-android16-lts-SukiSU-Ultra-AnyKernel3.zip` |
 
-GitHub Actions 构建记录：[run 40251632106](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40251632106)。7 个内核 job 全部成功，构建摘要均记录 `v4.2.1-r2-a864d15a@HEAD`、版本号 `41079` 和 SUSFS `v2.3.0`。
+GitHub Actions 最终构建记录：[run 40293417133](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40293417133)。7 个内核 job 全部成功，构建摘要均记录固定 SukiSU 提交 `a864d15ab8984c15bf585fb9e4dfbc6ccc8aaee1`、版本号 `41079`、UAPI `6` 和 SUSFS `v2.3.0`；workflow 同时对最终 `.config` 的 `CONFIG_KPM=y` 做失败即终止校验。
 
 每个通用 GKI 目标同时提供同一份已验证 `Image` 的四种安装格式：
 
@@ -52,7 +52,7 @@ GitHub Actions 构建记录：[run 40251632106](https://github.com/LOVECHEN/GKI_
 
 三种 boot image 都使用 boot header v4，并写入 64 MiB boot 分区约束与 AVB hash footer。Android 12 / 5.10 额外复用 Google certified GKI boot 的 ramdisk；其他版本沿用 GKI v4 的独立 `vendor_boot` 布局。正式仓库使用 GitHub Secret 中固定的 AVB RSA-2048 密钥，fork 未配置该 Secret 时会生成仅限该次构建的临时密钥，因此仍能完成构建。
 
-现有 7 个 LTS `Image` 的 boot image 回填由 [GitHub Actions run 40291603896](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40291603896) 完成：7 个矩阵 job 与最终校验表 job 全部成功，Release 新增 21 个镜像，并重新生成覆盖全部资产的 `SHA256SUMS`。
+7 个 LTS AnyKernel 与 21 个 boot image 均由最终 [GitHub Actions run 40293417133](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40293417133) 重新生成并替换旧资产；Release 的 `SHA256SUMS` 已重新生成，覆盖除校验表自身外的全部资产。
 
 ## MuMu 1.9.9 专用 Linux 4.19.195
 
@@ -72,6 +72,8 @@ MuMu 产物使用同一 SukiSU Ultra `r2 41079` 与 UAPI `6`，但属于针对 M
 ## AndroMeld 精确原版配置
 
 Release 中名称含 `2026-03` 的 `6.12.74-android16` 包是 AndroMeld 精确原版配置产物。SukiSU Ultra 版本现在同样固定为 `v4.2.1-r2 (41079)` / UAPI `6`，并与通用 Full 功能集对齐：启用 KPM、SUSFS、NoMount、BBG、Networking、DroidSpaces、NTSync、Ptrace、Unicode 和 BPF。Performance 仍关闭，因为它在通用 Full 配置中也是显式 opt-in，并非 AndroMeld 特例。
+
+最终产物来自 [workflow run 40295417701](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40295417701)，其完整内核编译与最终配置校验成功；发布的 `6.12.74-android16-2026-03-SukiSU-Ultra-AnyKernel3.zip` SHA-256 为 `8f38a6daad2cb9273f6fbe8eb9e943a2e15eb52741a12a88bca93abaec180043`。
 
 之前的 `41050 + 全部可选功能关闭` 是为定位显示唤醒问题制作的最小诊断 profile，不是 stock config 或外置模块 ABI 强制的限制。正式 Release 不再保留这个错误边界。
 

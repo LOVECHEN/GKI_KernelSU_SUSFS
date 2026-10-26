@@ -93,7 +93,9 @@ gh workflow run main.yml \
 
 已验证的最终状态为 SukiSU `Built-in / Working`、Zygisk Next `1.5.2`、LSPosed `2.2.1 / Activated`，并使用普通 ADB shell。关闭该功能后，MT 管理器和独立 LSPosed 管理器都已通过 Fusion Host 成功打开。
 
-同一份源码与 stock config 也在 [workflow run 39873307019](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/39873307019) 中成功构建 KernelSU-Next、KernelSU 和 BakaSU。这三个产物只完成构建验证，尚未在当前 AndroMeld VM 上做运行时验证。它们的 AnyKernel3 ZIP 与对应管理器 APK 与 SukiSU 产物一起发布在现有 [SukiSU Ultra v4.2.1-r2 (41079) release](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/releases/tag/v4.2.1-r2-41079) 中，不另建 release tag。当前 SukiSU 产物使用固定 `a864d15` 内核快照与 `41079` 管理器/UAPI 代际重建，旧 `41050` 管理器不再需要。
+同一份源码与 stock config 也在 [workflow run 39873307019](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/39873307019) 中成功构建 KernelSU-Next、KernelSU 和 BakaSU。这三个产物只完成构建验证，尚未在当前 AndroMeld VM 上做运行时验证。它们的 AnyKernel3 ZIP 与对应管理器 APK 与 SukiSU 产物一起发布在现有 [SukiSU Ultra v4.2.1-r2 (41079) release](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/releases/tag/v4.2.1-r2-41079) 中，不另建 release tag。
+
+正式 SukiSU Full 产物由 [workflow run 40295417701](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40295417701) 构建成功。该 run 固定内核源码 `3ec022196c4e9d5c1434599cdda63f622dd6f586`、SukiSU `a864d15ab8984c15bf585fb9e4dfbc6ccc8aaee1`、管理器 `41079`、UAPI `6` 与 SUSFS `v2.3.0`；构建摘要确认 Full 功能集，workflow 还会对最终 `.config` 的 `CONFIG_KPM=y` 做失败即终止校验。发布的 AnyKernel3 SHA-256 为 `8f38a6daad2cb9273f6fbe8eb9e943a2e15eb52741a12a88bca93abaec180043`。这是构建验证结果，尚未替代上面的运行时 baseline 验证。
 
 ## 为每个系列构建一个当前 LTS 内核
 
