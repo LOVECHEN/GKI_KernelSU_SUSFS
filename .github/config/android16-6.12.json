@@ -1,0 +1,44 @@
+{
+  "version": "android16-6.12",
+  "include": [
+    {
+      "sublevel": "23",
+      "date": "2025-06"
+    },
+    {
+      "sublevel": "30",
+      "date": "2025-07"
+    },
+    {
+      "sublevel": "38",
+      "date": "2025-08"
+    },
+    {
+      "sublevel": "38",
+      "date": "2025-09"
+    },
+    {
+      "sublevel": "58",
+      "date": "2025-12"
+    },
+    {
+      "sublevel": "74",
+      "date": "2026-03",
+      "source_commit": "3ec022196c4e9d5c1434599cdda63f622dd6f586",
+      "stock_config_path": "config/andromeld-6.12.74-stock.config",
+      "build_from_stock_config": true
+    },
+    {
+      "sublevel": "81",
+      "date": "2026-06"
+    },
+    {
+      "sublevel": "92",
+      "date": "2026-09"
+    },
+    {
+      "sublevel": "X",
+      "date": "lts"
+    }
+  ]
+}
