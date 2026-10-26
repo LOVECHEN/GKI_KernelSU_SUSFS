@@ -1,0 +1,28 @@
+diff --git a/kernel/manager/pkg_observer.c b/kernel/manager/pkg_observer.c
+index 49b7bdc..34e580f 100644
+--- a/kernel/manager/pkg_observer.c
++++ b/kernel/manager/pkg_observer.c
+@@ -31,9 +31,6 @@ static void ksu_defer_track_throne(void)
+ {
+     struct callback_head *cb;
+ 
+-    // Renew the getpriority uid bitmap filter
+-    susfs_parse_priority_app_strings();
+-
+     if (!(current->flags & PF_KTHREAD)) {
+         cb = kzalloc(sizeof(*cb), GFP_KERNEL);
+         if (cb) {
+diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
+index c7b28b8..69bfdd8 100644
+--- a/kernel/supercall/dispatch.c
++++ b/kernel/supercall/dispatch.c
+@@ -471,9 +471,6 @@ static int do_susfs_cmd(void __user *arg)
+             susfs_add_sus_map(arg);
+             return 0;
+ #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+-        case CMD_SUSFS_SET_PRIORITY_UID_FILTER:
+-            susfs_set_priority_uid_filter(arg);
+-            return 0;
+         case CMD_SUSFS_ENABLE_AVC_LOG_SPOOFING:
+             susfs_set_avc_log_spoofing(arg);
+             return 0;
