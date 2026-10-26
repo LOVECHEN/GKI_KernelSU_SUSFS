@@ -292,8 +292,9 @@ jobs:
             [susfs_commit_android14_5_15]="195d1c10c33f7cef503ff3a915d33f297d499ee7"
             [susfs_commit_android14_6_1]="27e0a0e42745991ba09d6f96a97bf4b83f41a012"
             [susfs_commit_android15_6_6]="c51cd8aad3f7e2f8c48bc3bda88cc68cf7d82895"
-            # Runtime-bisect candidate: first SUSFS v2.3.0 revision.
-            [susfs_commit_android16_6_12]="c7db8cb367ef3ed4126ed7e222d77757ccb5c05b"
+            # Runtime-bisect candidate: last v2.3.0 revision before the
+            # September SUS_MOUNT/SUS_KSTAT/OPEN_REDIRECT refactor.
+            [susfs_commit_android16_6_12]="fb58aef70a9c2aca8f0f85fba14017af94c4e789"
           )
 
           pick() { # pinned repo ref  -> pinned when verified, else latest
