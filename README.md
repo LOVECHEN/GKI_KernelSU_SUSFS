@@ -75,6 +75,15 @@ python build.py --list-matrix
 
 通用 `matrix.json` 总计 **30 个版本组合**。
 
+### 功能配置边界
+
+| 目标 | 可选内核功能 |
+|---------|----------------|
+| 通用 GKI LTS | 启用 `SUSFS + NoMount + Baseband Guard + Networking + DroidSpaces + NTSync + Ptrace + Unicode + BPF` |
+| AndroMeld `6.12.74 / 2026-03` 精确 stock | 全部关闭，仅叠加 SukiSU Ultra，保持原版 config、KMI 和显示/休眠行为 |
+
+AndroMeld 的禁用项不得复用到通用 GKI 矩阵。通用 GKI 如有单个补丁因上游上下文漂移失败，应修复该版本的补丁适配，不应将整类功能关闭。
+
 ### MuMu 专用目标
 
 MuMu 目标不写入通用 `matrix.json`。它使用修改过 `task_struct` 的私有非 GKI ABI，必须由独立 workflow 取得对应的私有 config、header 和 overlay 后构建。
@@ -138,6 +147,12 @@ MuMu 目标不写入通用 `matrix.json`。它使用修改过 `task_struct` 的�
 | [LZ4KD](https://github.com/ShirkNeko/SukiSU_patch/tree/main/other) | 来自华为源码的 ZRAM 算法 |
 | [KPM](https://github.com/bmax121/KernelPatch) | 内核模块支持 |
 | [Baseband-guard](https://github.com/vc-teahouse/Baseband-guard) | 基带安全防护 |
+| NoMount | 减少 Root 环境中的挂载暴露 |
+| Networking | IP Set、Netfilter、BBRv3、Qdisc、WireGuard 等网络能力 |
+| DroidSpaces | Android 多空间所需的内核支持 |
+| NTSync | Windows NT 同步原语内核支持 |
+| Ptrace / Unicode | ptrace 兼容补丁与 Unicode 绕过修复 |
+| BPF Stack | BTF、eBPF 与 FUSE-BPF 支持 |
 
 <details>
 
