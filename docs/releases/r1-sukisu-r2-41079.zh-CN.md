@@ -26,7 +26,7 @@
 - Unicode Fix
 - BPF
 
-Performance 补丁保持关闭。上述功能仅适用于本节列出的通用 GKI LTS 产物。
+Performance 补丁保持关闭。该 Full 功能集同样用于 AndroMeld `6.12.74-android16-2026-03` 的 SukiSU Ultra 精确 stock-config 产物。
 
 ## 构建矩阵
 
@@ -68,14 +68,15 @@ MuMu 产物使用同一 SukiSU Ultra `r2 41079` 与 UAPI `6`，但属于针对 M
 
 最终 Full Image 来自 [run 40229027977](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40229027977)，管理器来自 [run 40224422243](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40224422243)，宿主安装包来自 [run 40231284954](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40231284954)。运行验收已确认 SukiSU Built-in、KPM 3337、SUSFS v2.3.0、Zygisk Next 1.5.2 和 LSPosed 2.2.1 工作。
 
-## AndroMeld 边界
+## AndroMeld 精确原版配置
 
-Release 中名称含 `2026-03` 的 `6.12.74-android16` 包是 AndroMeld 精确原版兼容产物，继续固定 SukiSU Ultra `41050`，并保持 SUSFS、NoMount、BBG、Networking、DroidSpaces、NTSync、Ptrace、Unicode、BPF 和 Performance 全部关闭。它们没有被本次通用 GKI 更新覆盖。
+Release 中名称含 `2026-03` 的 `6.12.74-android16` 包是 AndroMeld 精确原版配置产物。SukiSU Ultra 版本现在同样固定为 `v4.2.1-r2 (41079)` / UAPI `6`，并与通用 Full 功能集对齐：启用 SUSFS、NoMount、BBG、Networking、DroidSpaces、NTSync、Ptrace、Unicode 和 BPF。Performance 仍关闭，因为它在通用 Full 配置中也是显式 opt-in，并非 AndroMeld 特例。
+
+之前的 `41050 + 全部可选功能关闭` 是为定位显示唤醒问题制作的最小诊断 profile，不是 stock config 或外置模块 ABI 强制的限制。正式 Release 不再保留这个错误边界。
 
 AndroMeld 精确原版与 MuMu 4.19.195 都由宿主直接加载 raw `Image`，不属于标准 Android 设备的通用 boot 分区布局，因此不会生成名称看似可刷、实际不适用的 `boot*.img`。
 
-因此，Release 同时保留三个 SukiSU 管理器 APK：
+因此，Release 保留两个 SukiSU 管理器 APK：
 
-- `SukiSU_v4.2.1-r2_41079-release.apk`：配套本次通用 GKI LTS 产物。
+- `SukiSU_v4.2.1-r2_41079-release.apk`：配套通用 GKI LTS 与 AndroMeld `6.12.74` 精确 stock-config 产物。
 - `SukiSU_v4.2.1-r2_41079-release-mumu.apk`：配套 MuMu 1.9.9 Linux 4.19.195 专用产物。
-- `SukiSU_v4.2.1-r1_41050-release.apk`：配套 AndroMeld 精确原版兼容产物。
