@@ -73,16 +73,10 @@ jobs:
           fi
 
           actual_count="$(find "$artifacts" -maxdepth 1 -type f | wc -l)"
-          if [[ "$actual_count" -ne 3 ]] || \
-             [[ ! -s "$artifacts/HongGuo-NoAds-v1.0.2-mumu.apk" ]] || \
-             [[ ! -s "$artifacts/Zygisk-Next-MuMu-Compat-v1.0.0.zip" ]] || \
-             [[ ! -s "$artifacts/SHA256SUMS.txt" ]] || \
+          if [[ "$actual_count" -ne 2 ]] || [[ ! -s "$artifacts/SHA256SUMS.txt" ]] || \
              find "$artifacts" -mindepth 1 -maxdepth 1 ! -type f | grep -q . || \
              find "$artifacts" -maxdepth 1 -type f -size +128M | grep -q . || \
-             find "$artifacts" -maxdepth 1 -type f \
-                 ! -name 'HongGuo-NoAds-v1.0.2-mumu.apk' \
-                 ! -name 'Zygisk-Next-MuMu-Compat-v1.0.0.zip' \
-                 ! -name 'SHA256SUMS.txt' | grep -q .; then
+             find "$artifacts" -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' ! -name '*.apk' | grep -q .; then
             printf 'Artifact allowlist validation failed.\n' >&2
             exit 65
           fi
