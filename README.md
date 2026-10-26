@@ -87,10 +87,6 @@ See **[Installation Guide](https://github.com/WildKernels/GKI_KernelSU_SUSFS/wik
 - **Sultan Kernels (Pixel)** — [kerneltoast](https://github.com/kerneltoast)
 - **Device Boot Fix** — [Boot fix commit](https://github.com/Anything-at-25-00/android_kernel_common_android12-5.10/commit/2476d262b597fe8af82cfb7aaf96676f51c6b4ed)
 
-**Contributors to this repository:**
-
-[![Contributors](https://contrib.rocks/image?repo=WildKernels/GKI_KernelSU_SUSFS)](https://github.com/WildKernels/GKI_KernelSU_SUSFS/graphs/contributors)
-
 Have an idea or improvement in mind? Contributions are always welcome — feel free to open a pull request or share your thoughts!
 
 ---
