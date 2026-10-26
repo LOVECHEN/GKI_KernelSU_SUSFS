@@ -696,6 +696,8 @@ jobs:
             echo "| **Root Manager** | ${ROOT_MANAGER} |"
             echo "| **Root Version** | ${ROOT_VERSION} |"
             echo "| **Root Commit** | ${ROOT_SHA} |"
+            echo "| **KernelPatch Commit** | ${KERNELPATCH_COMMIT:-N/A} |"
+            echo "| **KPM Smoke Test** | ${KPM_SMOKE_TEST:-N/A} |"
             echo "| **SUSFS Version** | ${SUSFS_VER} |"
             echo "| **SUSFS Commit** | ${SUSFS_SHA} |"
             echo "| **NoMount Commit** | ${NOMOUNT_SHA} |"
@@ -756,12 +758,6 @@ jobs:
             METHOD="GKI source build with SHA-pinned root implementation and SUSFS"
           else
             METHOD="GKI source build with SHA-pinned root implementation"
-          fi
-
-          if [ "$NOMOUNT_ENABLED" = "true" ]; then
-            NOMOUNT_MODULE_COMMIT="${{ inputs.nomount_commit }}"
-          else
-            NOMOUNT_MODULE_COMMIT="N/A"
           fi
 
           if [ "$SUSFS_ENABLED" = "true" ]; then
@@ -831,21 +827,14 @@ jobs:
           read -r kernel_artifact_url kernel_artifact_sha256 < <(
             resolve_artifact "${{ steps.extract.outputs.file_name }}-AnyKernel3"
           )
-          if [ "$NOMOUNT_ENABLED" = "true" ]; then
-            read -r nomount_module_url nomount_module_sha256 < <(
-              resolve_artifact "NoMount-Metamodule"
-            )
-          else
-            nomount_module_url="N/A"
-            nomount_module_sha256="N/A"
-          fi
-
           jq -n \
             --arg method "$METHOD" \
             --arg root_implementation "${ROOT_IMPLEMENTATION:-KernelSU-Next (legacy path)}" \
             --arg root_manager "${ROOT_MANAGER:-KernelSU-Next Manager}" \
             --arg root_version "${ROOT_VERSION:-${KSU_GIT_TAG:-N/A}}" \
             --arg root_commit "${ROOT_COMMIT:-${KSU_COMMIT:-N/A}}" \
+            --arg kernelpatch_commit "${KERNELPATCH_COMMIT:-N/A}" \
+            --arg kpm_smoke_test "${KPM_SMOKE_TEST:-N/A}" \
             --arg susfs_commit "$SUSFS_METADATA_COMMIT" \
             --arg nomount_commit "${NOMOUNT_COMMIT:-N/A}" \
             --arg android_branch "${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}" \
@@ -855,9 +844,6 @@ jobs:
             --arg provenance_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --arg artifact_url "$kernel_artifact_url" \
             --arg sha256 "$kernel_artifact_sha256" \
-            --arg nomount_module_commit "$NOMOUNT_MODULE_COMMIT" \
-            --arg nomount_module_url "$nomount_module_url" \
-            --arg nomount_module_sha256 "$nomount_module_sha256" \
             --arg status "Build-verified only" \
             --arg catalog_availability "eligible-with-provenance-and-checksums" \
             --arg device_compatibility "not-validated" \
@@ -871,6 +857,10 @@ jobs:
                 version: $root_version,
                 commit: $root_commit
               },
+              kernelpatch: {
+                commit: $kernelpatch_commit,
+                smoke_test: $kpm_smoke_test
+              },
               susfs_revision: $susfs_commit,
               nomount_commit: $nomount_commit,
               android_branch: $android_branch,
@@ -880,11 +870,6 @@ jobs:
               provenance_url: $provenance_url,
               artifact_url: $artifact_url,
               sha256: $sha256,
-              nomount_metamodule: {
-                commit: $nomount_module_commit,
-                artifact_url: $nomount_module_url,
-                sha256: $nomount_module_sha256
-              },
               catalog: {
                 availability: $catalog_availability,
                 device_compatibility: $device_compatibility,
@@ -914,18 +899,15 @@ jobs:
               "$metadata_file" > /dev/null
           fi
           if [ "$NOMOUNT_ENABLED" = "true" ]; then
-            jq -e '
-              (.nomount_commit | test("^[0-9a-f]{40}$")) and
-              (.nomount_metamodule.commit == .nomount_commit) and
-              (.nomount_metamodule.artifact_url | startswith("https://")) and
-              (.nomount_metamodule.sha256 | test("^sha256:[0-9a-f]{64}$"))
-            ' "$metadata_file" > /dev/null
+            jq -e '(.nomount_commit | test("^[0-9a-f]{40}$"))' \
+              "$metadata_file" > /dev/null
           else
+            jq -e '(.nomount_commit == "N/A")' "$metadata_file" > /dev/null
+          fi
+          if [ "${ROOT_IMPLEMENTATION:-}" = "sukisu-ultra" ]; then
             jq -e '
-              (.nomount_commit == "N/A") and
-              (.nomount_metamodule.commit == "N/A") and
-              (.nomount_metamodule.artifact_url == "N/A") and
-              (.nomount_metamodule.sha256 == "N/A")
+              (.kernelpatch.commit | test("^[0-9a-f]{40}$")) and
+              (.kernelpatch.smoke_test == "kpm-hello-demo.kpm")
             ' "$metadata_file" > /dev/null
           fi
 
