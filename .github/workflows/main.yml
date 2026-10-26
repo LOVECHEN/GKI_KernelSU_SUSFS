@@ -2025,13 +2025,6 @@ jobs:
             exit 1
           fi
 
-      - name: Download NoMount metamodule
-        uses: actions/download-artifact@v7
-        with:
-          path: release-assets
-          pattern: "*NoMount-Metamodule"
-          merge-multiple: false
-
       - name: Zip AnyKernel3 for Release
         run: |
           set -e
@@ -2044,32 +2037,6 @@ jobs:
             zip -r -q -9 "../$(basename "$zip_name")" .
             cd - >/dev/null
           done
-
-      - name: Zip NoMount Metamodule for Release
-        run: |
-          set -e
-          shopt -s nullglob
-
-          for dir in release-assets/*NoMount-Metamodule; do
-            zip_name="${dir}.zip"
-            rm -f "$zip_name"
-            cd "$dir"
-            zip -r -q -9 "../$(basename "$zip_name")" .
-            cd - >/dev/null
-          done
-
-      - name: Verify NoMount metamodule zip
-        if: inputs.use_nomount
-        run: |
-          set -euo pipefail
-          # The metamodule silently missed r20 (artifact built fine, no zip
-          # on the release). Fail loud instead of shipping without it.
-          if ! ls release-assets/NoMount-Metamodule.zip >/dev/null 2>&1; then
-            echo "ERROR: use_nomount is true but release-assets/NoMount-Metamodule.zip is missing" >&2
-            ls release-assets/ >&2
-            exit 1
-          fi
-          echo "NoMount metamodule zip OK"
 
       - name: Create Release
         env:
@@ -2442,18 +2409,11 @@ jobs:
           pattern: '6.12.*-android16-*-BootImages'
           merge-multiple: false
 
-      - name: Download NoMount metamodule
-        uses: actions/download-artifact@v7
-        with:
-          path: release-assets
-          pattern: '*NoMount-Metamodule'
-          merge-multiple: false
-
       - name: Zip artifacts for Release
         run: |
           set -e
           shopt -s nullglob
-          for dir in release-assets/*-AnyKernel3 release-assets/*NoMount-Metamodule; do
+          for dir in release-assets/*-AnyKernel3; do
             zip_name="${dir}.zip"
             rm -f "$zip_name"
             (cd "$dir" && zip -r -q -9 "../$(basename "$zip_name")" .)

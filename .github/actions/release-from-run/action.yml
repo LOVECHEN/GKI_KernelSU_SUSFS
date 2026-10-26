@@ -160,40 +160,6 @@ runs:
         done
         rm -f /tmp/apk.zip
 
-    - name: Download NoMount metamodule from source run
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        SOURCE_RUN_ID: ${{ steps.src.outputs.run_id }}
-      run: |
-        set -euo pipefail
-        mkdir -p release-assets
-
-        names=$(mktemp)
-        for page in $(seq 1 20); do
-          batch=$(gh api "repos/${{ github.repository }}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100&page=${page}" \
-            --jq '.artifacts[].name' || true)
-          [ -z "$batch" ] && break
-          printf '%s\n' "$batch" >> "$names"
-          count=$(grep -c . <<<"$batch" || true)
-          [ "$count" -lt 100 ] && break
-        done
-        mapfile -t nm < <(grep -iE 'nomount.*metamodule' "$names" | sort -u || true)
-        rm -f "$names"
-
-        echo "Found ${#nm[@]} NoMount metamodule artifacts"
-        for name in "${nm[@]}"; do
-          dest="release-assets/${name}"
-          [[ -d "$dest" ]] && continue
-          url=$(gh api "repos/${{ github.repository }}/actions/runs/${SOURCE_RUN_ID}/artifacts?name=${name}" \
-            --jq '.artifacts[0].archive_download_url // empty')
-          [[ -z "$url" ]] && { echo "  WARN: no url for ${name}"; continue; }
-          curl -fsSL --retry 3 --retry-delay 2 -H "Authorization: Bearer ${GH_TOKEN}" \
-            -o /tmp/nm.zip "$url" || { echo "  WARN: failed ${name}"; continue; }
-          mkdir -p "$dest" && unzip -q -o /tmp/nm.zip -d "$dest"
-        done
-        rm -f /tmp/nm.zip
-
     - name: Download release notes from source run
       shell: bash
       env:
@@ -262,23 +228,13 @@ runs:
         echo "NEW_TAG=${NEW_TAG}" >> "$GITHUB_ENV"
         echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
 
-    - name: Zip AnyKernel3 and NoMount for release
+    - name: Zip AnyKernel3 for release
       shell: bash
       run: |
         set -euo pipefail
         shopt -s nullglob
 
         for dir in release-assets/*-AnyKernel3; do
-          zip_name="${dir}.zip"
-          rm -f "$zip_name"
-          (
-            cd "$dir"
-            zip -r -q -9 "../$(basename "$zip_name")" .
-          )
-        done
-
-        for dir in release-assets/*NoMount*Metamodule* release-assets/*NoMount-Metamodule*; do
-          [[ -d "$dir" ]] || continue
           zip_name="${dir}.zip"
           rm -f "$zip_name"
           (
