@@ -88,17 +88,3 @@ See **[Installation Guide](https://github.com/WildKernels/GKI_KernelSU_SUSFS/wik
 - **Device Boot Fix** — [Boot fix commit](https://github.com/Anything-at-25-00/android_kernel_common_android12-5.10/commit/2476d262b597fe8af82cfb7aaf96676f51c6b4ed)
 
 Have an idea or improvement in mind? Contributions are always welcome — feel free to open a pull request or share your thoughts!
-
----
-
-## Donations
-
-> [!IMPORTANT]
-> **Kind note:** A donation is truly just a gift — not a payment for support, features, or priority. It doesn't unlock anything extra on our side and doesn't change how we help you; everyone gets the same community support whether you donate or not. Think of it as a kind “thank you” to help keep development going — not a transaction. If you do choose to give, we're genuinely grateful, but please never feel obligated.
-
-- PayPal: [bauhd@outlook.com](mailto:bauhd@outlook.com)
-- Card: <https://buy.stripe.com/5kQ28sdi08Nr0Xc2fU5os00>
-- LTC: `MVaN1ToSuks2cdK9mB3M8EHCfzQSyEMf6h`
-- BTC: `3BBXAMS4ZuCZwfbTXxWGczxHF4isymeyxG`
-- ETH: `0x2b9C846c84d58717e784458406235C09a834274e`
-- Patreon: <https://patreon.com/WildKernels>
