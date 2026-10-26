@@ -145,6 +145,10 @@ runs:
             exit 1
           fi
         fi
+        if [ "${ROOT_IMPLEMENTATION:-}" = 'sukisu-ultra' ] && ! grep -q '^CONFIG_KPM=y' "$CONFIG_FILE"; then
+          echo "ERROR: CONFIG_KPM missing from final .config for SukiSU-Ultra" >&2
+          exit 1
+        fi
 
         if [ "$PAGE_SIZE" = "16k" ]; then
           want_on="CONFIG_ARM64_16K_PAGES=y"

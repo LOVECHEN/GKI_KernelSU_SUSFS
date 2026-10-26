@@ -16,6 +16,7 @@
 
 7 个 LTS 目标均启用：
 
+- KPM
 - SUSFS
 - NoMount
 - Baseband Guard
@@ -70,7 +71,7 @@ MuMu 产物使用同一 SukiSU Ultra `r2 41079` 与 UAPI `6`，但属于针对 M
 
 ## AndroMeld 精确原版配置
 
-Release 中名称含 `2026-03` 的 `6.12.74-android16` 包是 AndroMeld 精确原版配置产物。SukiSU Ultra 版本现在同样固定为 `v4.2.1-r2 (41079)` / UAPI `6`，并与通用 Full 功能集对齐：启用 SUSFS、NoMount、BBG、Networking、DroidSpaces、NTSync、Ptrace、Unicode 和 BPF。Performance 仍关闭，因为它在通用 Full 配置中也是显式 opt-in，并非 AndroMeld 特例。
+Release 中名称含 `2026-03` 的 `6.12.74-android16` 包是 AndroMeld 精确原版配置产物。SukiSU Ultra 版本现在同样固定为 `v4.2.1-r2 (41079)` / UAPI `6`，并与通用 Full 功能集对齐：启用 KPM、SUSFS、NoMount、BBG、Networking、DroidSpaces、NTSync、Ptrace、Unicode 和 BPF。Performance 仍关闭，因为它在通用 Full 配置中也是显式 opt-in，并非 AndroMeld 特例。
 
 之前的 `41050 + 全部可选功能关闭` 是为定位显示唤醒问题制作的最小诊断 profile，不是 stock config 或外置模块 ABI 强制的限制。正式 Release 不再保留这个错误边界。
 

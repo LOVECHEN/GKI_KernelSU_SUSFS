@@ -138,6 +138,13 @@ runs:
         python3 "${{ github.action_path }}/fix_sukisu_kernel_apis.py" \
           common SukiSU-Ultra/kernel
 
+    - name: Enable SukiSU-Ultra KPM
+      if: inputs.flavor == 'sukisu-ultra'
+      uses: ./.github/actions/set-kernel-config
+      with:
+        config_list: |
+          CONFIG_KPM=y
+
     - name: Soften KernelSU-Next Kbuild config guard for mrproper
       if: inputs.flavor == 'next'
       shell: bash

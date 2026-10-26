@@ -31,11 +31,11 @@
 | Root Flavor | `SukiSU-Ultra` |
 | SUSFS | `true` |
 | NoMount | `true` |
-| BBG / Networking / DroidSpaces | `true` |
+| KPM / BBG / Networking / DroidSpaces | `true` |
 | NTSync / Ptrace / Unicode / BPF | `true` |
 | Performance | `false` |
 
-`2026-03` 目标使用从 AndroMeld 原版内核提取的精确 stock config，但 stock config 只是设备配置基线，不代表必须关闭可选功能。正式 SukiSU 产物与通用 Full 配置对齐，启用 `SUSFS + NoMount + BBG + Networking + DroidSpaces + NTSync + Ptrace + Unicode + BPF`；`Performance` 与通用 Full 一样保持关闭，它从来不属于默认 Full 功能集。`allow_version_mismatch` 仍需启用，因为运行时包含按原版 release 字符串编译的外置模块。
+`2026-03` 目标使用从 AndroMeld 原版内核提取的精确 stock config，但 stock config 只是设备配置基线，不代表必须关闭可选功能。正式 SukiSU 产物与通用 Full 配置对齐，启用 `KPM + SUSFS + NoMount + BBG + Networking + DroidSpaces + NTSync + Ptrace + Unicode + BPF`；`Performance` 与通用 Full 一样保持关闭，它从来不属于默认 Full 功能集。`allow_version_mismatch` 仍需启用，因为运行时包含按原版 release 字符串编译的外置模块。
 
 早期为定位黑屏与显示唤醒问题，曾经人为关闭所有可选功能构建最小诊断版。那是排障手段，不是 AndroMeld 的技术限制，也不应继续作为正式 Release 配置。
 
@@ -113,7 +113,7 @@ gh workflow run main.yml \
   -f page_size=4k \
   -f brand_name=AndroMeld \
   -f keep_kmi=true \
-  -f commit_mode=latest \
+  -f commit_mode=verified \
   -f root_flavor=SukiSU-Ultra \
   -f use_susfs=true \
   -f use_nomount=true \
