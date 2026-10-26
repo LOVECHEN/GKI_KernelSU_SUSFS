@@ -18,8 +18,29 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}/kernel
       run: |
+        set -euo pipefail
+
         # Modify security Kconfig to include baseband_guard in LSM
         sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' common/security/Kconfig
+
+        # Android GKI defconfigs explicitly set CONFIG_LSM, which overrides the
+        # Kconfig default above. Preserve the stock LSM order and append BBG.
+        defconfig="common/arch/arm64/configs/gki_defconfig"
+        if grep -q '^CONFIG_LSM=' "$defconfig"; then
+          current_lsm="$(sed -n 's/^CONFIG_LSM="\{0,1\}\([^"[:space:]]*\)"\{0,1\}$/\1/p' "$defconfig")"
+          if [ -z "$current_lsm" ]; then
+            echo "[-] FAILED: unable to parse CONFIG_LSM from $defconfig"
+            grep '^CONFIG_LSM=' "$defconfig" || true
+            exit 1
+          fi
+
+          case ",$current_lsm," in
+            *,baseband_guard,*) ;;
+            *)
+              sed -i "s|^CONFIG_LSM=.*|CONFIG_LSM=\"${current_lsm},baseband_guard\"|" "$defconfig"
+              ;;
+          esac
+        fi
     
     - name: Verify BBG Installation
       shell: bash
@@ -32,6 +53,14 @@ runs:
           echo "[-] FAILED: baseband_guard not found in common/security/Kconfig"
           exit 1
         fi
+
+        defconfig="common/arch/arm64/configs/gki_defconfig"
+        if grep -q '^CONFIG_LSM=' "$defconfig" && ! grep -Eq '^CONFIG_LSM="?[^"[:space:]]*baseband_guard' "$defconfig"; then
+          echo "[-] FAILED: explicit CONFIG_LSM does not include baseband_guard"
+          grep '^CONFIG_LSM=' "$defconfig" || true
+          exit 1
+        fi
+        grep '^CONFIG_LSM=' "$defconfig" || echo "[+] CONFIG_LSM uses the patched Kconfig default"
     
     - name: Extract BBG Version
       shell: bash
