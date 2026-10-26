@@ -15,6 +15,19 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
 kernel = Path(sys.argv[1])
 sukisu = Path(sys.argv[2])
 
+throne_tracker_path = sukisu / "manager/throne_tracker.c"
+throne_tracker = throne_tracker_path.read_text()
+malformed_initializer = ".depth = pos->depth }\n"
+if malformed_initializer in throne_tracker:
+    throne_tracker = replace_once(
+        throne_tracker,
+        malformed_initializer,
+        ".depth = pos->depth };\n",
+        "throne tracker initializer terminator",
+    )
+    throne_tracker_path.write_text(throne_tracker)
+    print("Restored missing throne tracker initializer semicolon")
+
 netlink_header = (kernel / "include/linux/netlink.h").read_text()
 super_access_path = sukisu / "extension/kpm/super_access.c"
 super_access = super_access_path.read_text()
