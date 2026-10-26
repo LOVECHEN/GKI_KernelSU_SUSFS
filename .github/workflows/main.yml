@@ -323,9 +323,9 @@ jobs:
           # KowSU, and No Root are opt-in only and never part of 'All'.
           #
           # kernelsu, bakasu, and sukisu-ultra pin in verified mode;
-          # KernelSU-Next (next) always builds at latest.
-          # With SUSFS off, every root tracks latest instead of pins:
-          # SukiSU-Ultra follows main (builtin only matters for SUSFS builds).
+          # KernelSU-Next (next) always builds at latest. Feature toggles must
+          # not silently turn a verified build into a moving-target build:
+          # SUSFS-off diagnostics still use the same audited root snapshots.
           # Scheduled runs default SUSFS on (all features on, see the
           # feature_set computation) - a nightly is a full-featured build.
           if [ "${{ github.event_name }}" = "schedule" ]; then
@@ -339,10 +339,10 @@ jobs:
             SUKISU_ULTRA_COMMIT="$(pick "$PIN_SUKISU_ULTRA" https://github.com/SukiSU-Ultra/SukiSU-Ultra.git refs/heads/builtin)"
             FINASU_COMMIT="$(pick "$PIN_FINASU" https://github.com/LyraVoid/FinaSU.git refs/heads/master)"
           else
-            KERNELSU_COMMIT="$(resolve_sha https://github.com/tiann/KernelSU.git refs/heads/main)"
-            BAKASU_COMMIT="$(resolve_sha https://github.com/Baka-SU/BakaSU.git refs/heads/main)"
-            SUKISU_ULTRA_COMMIT="$(resolve_sha https://github.com/SukiSU-Ultra/SukiSU-Ultra.git refs/heads/main)"
-            FINASU_COMMIT="$(resolve_sha https://github.com/LyraVoid/FinaSU.git refs/heads/master)"
+            KERNELSU_COMMIT="$(pick "$PIN_KERNELSU" https://github.com/tiann/KernelSU.git refs/heads/main)"
+            BAKASU_COMMIT="$(pick "$PIN_BAKASU" https://github.com/Baka-SU/BakaSU.git refs/heads/main)"
+            SUKISU_ULTRA_COMMIT="$(pick "$PIN_SUKISU_ULTRA" https://github.com/SukiSU-Ultra/SukiSU-Ultra.git refs/heads/builtin)"
+            FINASU_COMMIT="$(pick "$PIN_FINASU" https://github.com/LyraVoid/FinaSU.git refs/heads/master)"
           fi
           emit ksu_commit "$KERNELSU_COMMIT"
           emit bakasu_commit "$BAKASU_COMMIT"
