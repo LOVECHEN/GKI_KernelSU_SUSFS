@@ -41,6 +41,8 @@ Fork the repository and follow **[Build Your Own Kernel](docs/build-from-fork.md
 
 The `android16-6.12` matrix also contains an **[AndroMeld 6.12.74 profile](docs/andromeld.md)** pinned to the exact Android common-kernel commit used by the current AndroMeld runtime.
 
+The verified SukiSU Ultra `v4.2.1-r2 (41079)` LTS build matrix and release provenance are documented in **[中文构建记录](docs/releases/r1-sukisu-r2-41079.zh-CN.md)**.
+
 ---
 
 ## Installation
