@@ -188,12 +188,14 @@ From the web UI:
 1. Open the completed workflow run.
 2. Scroll to **Artifacts**.
 3. Download the artifact ending in `-AnyKernel3` for the selected root flavor.
-4. Download the matching `-BuildInfo` artifact and keep it with the kernel.
-5. Download the manager APK for the same root flavor and any required module artifacts.
+4. If you need a directly flashable boot partition image, download the matching `-BootImages` artifact.
+5. Download the matching `-BuildInfo` artifact and keep it with the kernel.
+6. Download the manager APK for the same root flavor and any required module artifacts.
 
 Common artifacts include:
 
 - `*-AnyKernel3` — kernel package contents.
+- `*-BootImages` — AVB-signed `boot.img`, `boot-gz.img`, and `boot-lz4.img` variants generated from the same built `Image`. Android 12 / 5.10 variants retain the certified GKI ramdisk.
 - `*-BuildInfo` — source and artifact provenance, including checksums.
 - Manager APK artifacts — install the manager matching the selected root flavor.
 - `NoMount-Metamodule` — optional mount metamodule when applicable.
@@ -205,6 +207,7 @@ gh run download \
   -R YOUR_USERNAME/GKI_KernelSU_SUSFS \
   RUN_ID \
   -p '*-AnyKernel3' \
+  -p '*-BootImages' \
   -p '*-BuildInfo' \
   -p '*.apk' \
   -p 'NoMount-Metamodule' \

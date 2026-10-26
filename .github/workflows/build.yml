@@ -5,6 +5,10 @@ permissions:
 
 on:
   workflow_call:
+    secrets:
+      BOOT_SIGN_KEY:
+        description: "Stable RSA-2048 key used for AVB hash footers; forks may omit it"
+        required: false
     inputs:
       version:
         required: true
@@ -560,6 +564,18 @@ jobs:
           version: ${{ inputs.version }}
           page_size: ${{ inputs.page_size }}
 
+      - name: Create Boot Image Variants
+        if: ${{ !inputs.build_from_stock_config }}
+        uses: ./.github/actions/create-boot-images
+        with:
+          image: ${{ github.workspace }}/AnyKernel3/Image
+          output_dir: ${{ github.workspace }}/BootImages
+          file_name: ${{ steps.extract.outputs.file_name }}
+          android_version: ${{ inputs.android_version }}
+          kernel_version: ${{ inputs.kernel_version }}
+          os_patch_level: ${{ inputs.os_patch_level }}
+          boot_sign_key: ${{ secrets.BOOT_SIGN_KEY }}
+
       - name: Get Cache Stats
         uses: ./.github/actions/cache-stats
         with:
@@ -698,6 +714,15 @@ jobs:
           path: ${{ github.workspace }}/AnyKernel3/**
           if-no-files-found: ignore
           compression-level: 9
+
+      - name: Upload Boot Image Artifacts
+        if: ${{ !inputs.build_from_stock_config }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.extract.outputs.file_name }}-BootImages
+          path: ${{ github.workspace }}/BootImages/*-boot*.img
+          if-no-files-found: error
+          compression-level: 0
 
       - name: Write Build-verified only artifact metadata
         if: success() && inputs.root_flavor != '' && inputs.root_flavor != 'none'

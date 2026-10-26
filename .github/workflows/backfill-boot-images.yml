@@ -1,0 +1,102 @@
+name: Backfill Boot Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing release tag whose SukiSU Ultra AnyKernel3 assets will be packaged'
+        required: true
+        type: string
+        default: 'v4.2.1-r2-41079'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - asset: 5.10.272-android12-lts-SukiSU-Ultra-AnyKernel3.zip
+            file_name: 5.10.272-android12-lts-SukiSU-Ultra
+            android_version: android12
+            kernel_version: '5.10'
+          - asset: 5.10.272-android13-lts-SukiSU-Ultra-AnyKernel3.zip
+            file_name: 5.10.272-android13-lts-SukiSU-Ultra
+            android_version: android13
+            kernel_version: '5.10'
+          - asset: 5.15.220-android13-lts-SukiSU-Ultra-AnyKernel3.zip
+            file_name: 5.15.220-android13-lts-SukiSU-Ultra
+            android_version: android13
+            kernel_version: '5.15'
+          - asset: 5.15.220-android14-lts-SukiSU-Ultra-AnyKernel3.zip
+            file_name: 5.15.220-android14-lts-SukiSU-Ultra
+            android_version: android14
+            kernel_version: '5.15'
+          - asset: 6.1.177-android14-lts-SukiSU-Ultra-AnyKernel3.zip
+            file_name: 6.1.177-android14-lts-SukiSU-Ultra
+            android_version: android14
+            kernel_version: '6.1'
+          - asset: 6.6.144-android15-lts-SukiSU-Ultra-AnyKernel3.zip
+            file_name: 6.6.144-android15-lts-SukiSU-Ultra
+            android_version: android15
+            kernel_version: '6.6'
+          - asset: 6.12.96-android16-lts-SukiSU-Ultra-AnyKernel3.zip
+            file_name: 6.12.96-android16-lts-SukiSU-Ultra
+            android_version: android16
+            kernel_version: '6.12'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download verified AnyKernel3 release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          gh release download "$RELEASE_TAG" --pattern "$ASSET" --dir source
+          unzip -q "source/$ASSET" -d source/anykernel
+          [ -s source/anykernel/Image ] || { echo "Image missing from $ASSET" >&2; exit 1; }
+
+      - name: Create boot image variants
+        uses: ./.github/actions/create-boot-images
+        with:
+          image: source/anykernel/Image
+          output_dir: boot-images
+          file_name: ${{ matrix.file_name }}
+          android_version: ${{ matrix.android_version }}
+          kernel_version: ${{ matrix.kernel_version }}
+          os_patch_level: lts
+          boot_sign_key: ${{ secrets.BOOT_SIGN_KEY }}
+
+      - name: Upload boot images to existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" boot-images/*-boot*.img --clobber
+
+  checksums:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh release checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          gh release download "$RELEASE_TAG" --dir release-assets
+          rm -f release-assets/SHA256SUMS
+          (
+            cd release-assets
+            sha256sum ./* > SHA256SUMS
+          )
+          gh release upload "$RELEASE_TAG" release-assets/SHA256SUMS --clobber
+

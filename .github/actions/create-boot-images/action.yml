@@ -1,0 +1,149 @@
+name: 'Create Boot Image Variants'
+description: 'Packages a raw GKI Image as AVB-signed boot.img, boot-gz.img, and boot-lz4.img'
+
+inputs:
+  image:
+    description: 'Path to the uncompressed kernel Image'
+    required: true
+  output_dir:
+    description: 'Directory that receives the boot image variants'
+    required: true
+  file_name:
+    description: 'Release filename prefix'
+    required: true
+  android_version:
+    description: 'Android generation, for example android12'
+    required: true
+  kernel_version:
+    description: 'Kernel generation, for example 5.10'
+    required: true
+  os_patch_level:
+    description: 'Android security patch level or lts selector'
+    required: true
+  boot_sign_key:
+    description: 'Optional stable RSA-2048 AVB signing key in PEM format'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install boot image packaging dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! command -v lz4 >/dev/null 2>&1; then
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lz4
+        fi
+
+    - name: Fetch pinned Android boot tools
+      shell: bash
+      run: |
+        set -euo pipefail
+        tools_dir="${RUNNER_TEMP}/gki-boot-tools"
+        rm -rf "$tools_dir"
+        mkdir -p "$tools_dir"
+
+        retry() {
+          local attempt
+          for attempt in 1 2 3 4 5; do
+            "$@" && return 0
+            echo "Attempt ${attempt}/5 failed: $*" >&2
+            sleep 5
+          done
+          return 1
+        }
+
+        retry git clone --filter=blob:none --no-checkout \
+          https://android.googlesource.com/kernel/prebuilts/build-tools \
+          "$tools_dir/build-tools"
+        retry git -C "$tools_dir/build-tools" fetch --depth=1 origin \
+          b46264b70e3cdf70d08c9ae2df6ea3002b242ebc
+        git -C "$tools_dir/build-tools" checkout --detach \
+          b46264b70e3cdf70d08c9ae2df6ea3002b242ebc
+
+        retry git clone --filter=blob:none --no-checkout \
+          https://android.googlesource.com/platform/system/tools/mkbootimg \
+          "$tools_dir/mkbootimg"
+        retry git -C "$tools_dir/mkbootimg" fetch --depth=1 origin \
+          f5c284e8998dd8a085cf027bb518b6c2b84cf744
+        git -C "$tools_dir/mkbootimg" checkout --detach \
+          f5c284e8998dd8a085cf027bb518b6c2b84cf744
+
+        echo "AVBTOOL=$tools_dir/build-tools/linux-x86/bin/avbtool" >> "$GITHUB_ENV"
+        echo "MKBOOTIMG=$tools_dir/mkbootimg/mkbootimg.py" >> "$GITHUB_ENV"
+        echo "UNPACK_BOOTIMG=$tools_dir/mkbootimg/unpack_bootimg.py" >> "$GITHUB_ENV"
+
+    - name: Create boot image variants
+      shell: bash
+      env:
+        INPUT_IMAGE: ${{ inputs.image }}
+        OUTPUT_DIR: ${{ inputs.output_dir }}
+        FILE_NAME: ${{ inputs.file_name }}
+        ANDROID_VERSION: ${{ inputs.android_version }}
+        KERNEL_VERSION: ${{ inputs.kernel_version }}
+        OS_PATCH_LEVEL: ${{ inputs.os_patch_level }}
+        BOOT_SIGN_KEY: ${{ inputs.boot_sign_key }}
+      run: |
+        set -euo pipefail
+
+        [ -s "$INPUT_IMAGE" ] || { echo "Missing kernel Image: $INPUT_IMAGE" >&2; exit 1; }
+        [ -x "$AVBTOOL" ] || { echo "Missing avbtool: $AVBTOOL" >&2; exit 1; }
+        [ -f "$MKBOOTIMG" ] || { echo "Missing mkbootimg.py: $MKBOOTIMG" >&2; exit 1; }
+
+        work_dir="${RUNNER_TEMP}/boot-images-${FILE_NAME}"
+        key_file="${RUNNER_TEMP}/gki-boot-signing-key.pem"
+        rm -rf "$work_dir" "$OUTPUT_DIR"
+        mkdir -p "$work_dir" "$OUTPUT_DIR"
+        cp "$INPUT_IMAGE" "$work_dir/Image"
+
+        if [ -n "$BOOT_SIGN_KEY" ]; then
+          printf '%s\n' "$BOOT_SIGN_KEY" > "$key_file"
+        else
+          echo "BOOT_SIGN_KEY is unavailable; generating an ephemeral AVB key for this fork build."
+          openssl genrsa -out "$key_file" 2048 >/dev/null 2>&1
+        fi
+        chmod 600 "$key_file"
+
+        gzip -n -c -9 "$work_dir/Image" > "$work_dir/Image.gz"
+        lz4 -l -12 -f "$work_dir/Image" "$work_dir/Image.lz4"
+
+        ramdisk_args=()
+        if [ "$ANDROID_VERSION" = "android12" ] && [ "$KERNEL_VERSION" = "5.10" ]; then
+          certified_zip="$work_dir/gki-certified.zip"
+          certified_url="https://dl.google.com/android/gki/gki-certified-boot-android12-5.10-2023-01_r1.zip"
+          curl -fL --retry 3 --retry-delay 3 "$certified_url" -o "$certified_zip"
+          unzip -q -o "$certified_zip" -d "$work_dir/certified"
+          certified_boot=$(find "$work_dir/certified" -type f -name 'boot-5.10.img' -print -quit)
+          [ -n "$certified_boot" ] || { echo "Certified Android 12 boot image is missing" >&2; exit 1; }
+          python3 "$UNPACK_BOOTIMG" --boot_img "$certified_boot" --out "$work_dir/unpacked"
+          [ -s "$work_dir/unpacked/ramdisk" ] || { echo "Certified Android 12 ramdisk is missing" >&2; exit 1; }
+          ramdisk_args=(--ramdisk "$work_dir/unpacked/ramdisk" --os_version 12.0.0 --os_patch_level 2023-01)
+        fi
+
+        for variant in raw gz lz4; do
+          case "$variant" in
+            raw) kernel="$work_dir/Image"; suffix="boot.img" ;;
+            gz) kernel="$work_dir/Image.gz"; suffix="boot-gz.img" ;;
+            lz4) kernel="$work_dir/Image.lz4"; suffix="boot-lz4.img" ;;
+          esac
+          output="$OUTPUT_DIR/${FILE_NAME}-${suffix}"
+          python3 "$MKBOOTIMG" \
+            --header_version 4 \
+            --kernel "$kernel" \
+            "${ramdisk_args[@]}" \
+            --output "$output"
+          "$AVBTOOL" add_hash_footer \
+            --partition_name boot \
+            --partition_size $((64 * 1024 * 1024)) \
+            --image "$output" \
+            --algorithm SHA256_RSA2048 \
+            --key "$key_file"
+          "$AVBTOOL" info_image --image "$output" >/dev/null
+          [ -s "$output" ] || { echo "Empty boot image: $output" >&2; exit 1; }
+          sha256sum "$output"
+        done
+
+        rm -f "$key_file"
+

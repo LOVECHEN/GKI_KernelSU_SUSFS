@@ -43,6 +43,8 @@ The `android16-6.12` matrix also contains an **[AndroMeld 6.12.74 profile](docs/
 
 The verified SukiSU Ultra `v4.2.1-r2 (41079)` LTS build matrix and release provenance are documented in **[中文构建记录](docs/releases/r1-sukisu-r2-41079.zh-CN.md)**.
 
+Each standard GKI build publishes four installable forms: an AnyKernel3 ZIP plus AVB-signed `boot.img`, `boot-gz.img`, and `boot-lz4.img` variants. Exact-stock AndroMeld and MuMu kernels remain raw-Image workflows and are not repackaged as generic GKI boot images.
+
 ---
 
 ## Installation

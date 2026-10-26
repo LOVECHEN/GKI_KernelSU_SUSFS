@@ -1877,6 +1877,55 @@ jobs:
           pattern: "6.12.*-android16-*-AnyKernel3"
           merge-multiple: false
 
+      - name: Download BootImages (5.10 android12)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: "5.10.*-android12-*-BootImages"
+          merge-multiple: false
+
+      - name: Download BootImages (5.10 android13)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: "5.10.*-android13-*-BootImages"
+          merge-multiple: false
+
+      - name: Download BootImages (5.15 android13)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: "5.15.*-android13-*-BootImages"
+          merge-multiple: false
+
+      - name: Download BootImages (5.15 android14)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: "5.15.*-android14-*-BootImages"
+          merge-multiple: false
+
+      - name: Download BootImages (6.1 android14)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: "6.1.*-android14-*-BootImages"
+          merge-multiple: false
+
+      - name: Download BootImages (6.6 android15)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: "6.6.*-android15-*-BootImages"
+          merge-multiple: false
+
+      - name: Download BootImages (6.12 android16)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: "6.12.*-android16-*-BootImages"
+          merge-multiple: false
+
       - name: Verify all AnyKernel3 artifacts downloaded
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1930,6 +1979,49 @@ jobs:
           fi
           if [ "$got" -ne "$expected" ]; then
             echo "ERROR: downloaded $got of $expected AnyKernel3 artifacts" >&2
+            exit 1
+          fi
+
+      - name: Verify all BootImages artifacts downloaded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          names=$(mktemp)
+          for page in $(seq 1 50); do
+            batch=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100&page=${page}" \
+              --jq '.artifacts[].name' || true)
+            [ -z "$batch" ] && break
+            printf '%s\n' "$batch" >> "$names"
+            count=$(printf '%s\n' "$batch" | grep -c . || true)
+            [ "$count" -lt 100 ] && break
+          done
+
+          expected=$(grep -c '\-BootImages$' "$names" || true)
+          missing=0
+          while IFS= read -r name; do
+            [ -z "$name" ] && continue
+            if [ ! -d "release-assets/${name}" ]; then
+              echo "Re-fetching missed artifact: $name"
+              artifact_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?name=${name}" \
+                --jq '.artifacts[0].id // empty' || true)
+              if [ -z "$artifact_id" ] || \
+                 ! gh api "repos/${{ github.repository }}/actions/artifacts/${artifact_id}/zip" > "release-assets/${name}.zip"; then
+                echo "ERROR: failed to re-fetch $name" >&2
+                missing=$((missing + 1))
+              else
+                mkdir -p "release-assets/${name}" && unzip -q -o "release-assets/${name}.zip" -d "release-assets/${name}"
+                rm -f "release-assets/${name}.zip"
+              fi
+            fi
+          done < <(grep '\-BootImages$' "$names" || true)
+          rm -f "$names"
+
+          got=$(find release-assets -maxdepth 1 -type d -name "*-BootImages" 2>/dev/null | wc -l)
+          echo "BootImages artifacts in run: $expected, downloaded: $got, unrecoverable: $missing"
+          if [ "$missing" -ne 0 ] || [ "$got" -ne "$expected" ]; then
+            echo "ERROR: downloaded $got of $expected BootImages artifacts ($missing unrecoverable)" >&2
             exit 1
           fi
 
@@ -2301,6 +2393,55 @@ jobs:
           pattern: '6.12.*-android16-*-AnyKernel3'
           merge-multiple: false
 
+      - name: Download BootImages (5.10 android12)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: '5.10.*-android12-*-BootImages'
+          merge-multiple: false
+
+      - name: Download BootImages (5.10 android13)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: '5.10.*-android13-*-BootImages'
+          merge-multiple: false
+
+      - name: Download BootImages (5.15 android13)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: '5.15.*-android13-*-BootImages'
+          merge-multiple: false
+
+      - name: Download BootImages (5.15 android14)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: '5.15.*-android14-*-BootImages'
+          merge-multiple: false
+
+      - name: Download BootImages (6.1 android14)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: '6.1.*-android14-*-BootImages'
+          merge-multiple: false
+
+      - name: Download BootImages (6.6 android15)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: '6.6.*-android15-*-BootImages'
+          merge-multiple: false
+
+      - name: Download BootImages (6.12 android16)
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          pattern: '6.12.*-android16-*-BootImages'
+          merge-multiple: false
+
       - name: Download NoMount metamodule
         uses: actions/download-artifact@v7
         with:
@@ -2342,8 +2483,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          shopt -s nullglob
-          files=(release-assets/*.zip)
+          shopt -s nullglob globstar
+          files=(release-assets/*.zip release-assets/**/*-boot*.img)
           if [ "${#files[@]}" -eq 0 ]; then
             echo "No kernel artifacts this run; nightly published with notes only." >> "$GITHUB_STEP_SUMMARY"
             exit 0

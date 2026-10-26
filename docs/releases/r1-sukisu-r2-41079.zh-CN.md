@@ -42,6 +42,15 @@ Performance 补丁保持关闭。上述功能仅适用于本节列出的通用 G
 
 GitHub Actions 构建记录：[run 40251632106](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40251632106)。7 个内核 job 全部成功，构建摘要均记录 `v4.2.1-r2-a864d15a@HEAD`、版本号 `41079` 和 SUSFS `v2.3.0`。
 
+每个通用 GKI 目标同时提供同一份已验证 `Image` 的四种安装格式：
+
+- `*-AnyKernel3.zip`：通过 Kernel Flasher、Recovery 或已有 Root 环境刷入。
+- `*-boot.img`：未压缩 `Image` 封装的 Android boot image。
+- `*-boot-gz.img`：gzip `Image` 封装的 Android boot image。
+- `*-boot-lz4.img`：legacy LZ4 `Image` 封装的 Android boot image。
+
+三种 boot image 都使用 boot header v4，并写入 64 MiB boot 分区约束与 AVB hash footer。Android 12 / 5.10 额外复用 Google certified GKI boot 的 ramdisk；其他版本沿用 GKI v4 的独立 `vendor_boot` 布局。正式仓库使用 GitHub Secret 中固定的 AVB RSA-2048 密钥，fork 未配置该 Secret 时会生成仅限该次构建的临时密钥，因此仍能完成构建。
+
 ## MuMu 1.9.9 专用 Linux 4.19.195
 
 MuMu 产物使用同一 SukiSU Ultra `r2 41079` 与 UAPI `6`，但属于针对 MuMu 私有内核 ABI 构建的非 GKI 产物，不能刷入普通 GKI 设备。统一 Release 中以 `mumu` 或 `MuMu` 文件名明确隔离：
@@ -60,6 +69,8 @@ MuMu 产物使用同一 SukiSU Ultra `r2 41079` 与 UAPI `6`，但属于针对 M
 ## AndroMeld 边界
 
 Release 中名称含 `2026-03` 的 `6.12.74-android16` 包是 AndroMeld 精确原版兼容产物，继续固定 SukiSU Ultra `41050`，并保持 SUSFS、NoMount、BBG、Networking、DroidSpaces、NTSync、Ptrace、Unicode、BPF 和 Performance 全部关闭。它们没有被本次通用 GKI 更新覆盖。
+
+AndroMeld 精确原版与 MuMu 4.19.195 都由宿主直接加载 raw `Image`，不属于标准 Android 设备的通用 boot 分区布局，因此不会生成名称看似可刷、实际不适用的 `boot*.img`。
 
 因此，Release 同时保留三个 SukiSU 管理器 APK：
 

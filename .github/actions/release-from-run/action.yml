@@ -1,6 +1,14 @@
 name: 'Release From Existing Run'
 description: 'Build a release from the artifacts of a previous Build Kernels run, without rebuilding'
 
+inputs:
+  source_run_id:
+    description: 'Completed Build Kernels workflow run ID'
+    required: true
+  release_type:
+    description: 'Pre-Release or Release'
+    required: true
+
 runs:
   using: "composite"
   steps:
@@ -45,7 +53,7 @@ runs:
         echo "run_id=${SOURCE_RUN_ID}" >> "$GITHUB_OUTPUT"
         echo "head_branch=${head_branch}" >> "$GITHUB_OUTPUT"
 
-    - name: Download all AnyKernel3 artifacts from source run
+    - name: Download all kernel artifacts from source run
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -68,13 +76,15 @@ runs:
         done
 
         mapfile -t ak3 < <(grep -E '\-AnyKernel3$' "$names" | sort -u)
+        mapfile -t boot_images < <(grep -E '\-BootImages$' "$names" | sort -u)
+        artifacts=("${ak3[@]}" "${boot_images[@]}")
         rm -f "$names"
 
         if [[ "${#ak3[@]}" -eq 0 ]]; then
           echo "ERROR: no *-AnyKernel3 artifacts in run ${SOURCE_RUN_ID}" >&2
           exit 1
         fi
-        echo "Found ${#ak3[@]} AnyKernel3 artifacts in run ${SOURCE_RUN_ID}"
+        echo "Found ${#ak3[@]} AnyKernel3 and ${#boot_images[@]} BootImages artifacts in run ${SOURCE_RUN_ID}"
 
         # Fetch each artifact individually by name. actions/download-artifact's
         # pattern match silently under-matched on a run this large (496 of 609
@@ -82,11 +92,11 @@ runs:
         # reliable path here. Sequential to stay under API rate limits.
         failed=0
         n=0
-        for name in "${ak3[@]}"; do
+        for name in "${artifacts[@]}"; do
           n=$((n + 1))
           dest="release-assets/${name}"
           [[ -d "$dest" ]] && continue
-          echo "[${n}/${#ak3[@]}] ${name}"
+          echo "[${n}/${#artifacts[@]}] ${name}"
           url=$(gh api "repos/${{ github.repository }}/actions/runs/${SOURCE_RUN_ID}/artifacts?name=${name}" \
             --jq '.artifacts[0].archive_download_url // empty')
           if [[ -z "$url" ]]; then
@@ -109,10 +119,10 @@ runs:
         done
         rm -f /tmp/ak3.zip
 
-        got=$(find release-assets -maxdepth 1 -type d -name '*-AnyKernel3' | wc -l)
-        echo "AnyKernel3 artifacts expected: ${#ak3[@]}, downloaded: ${got}, failed: ${failed}"
-        if [[ "$failed" -ne 0 || "$got" -ne "${#ak3[@]}" ]]; then
-          echo "ERROR: incomplete artifact set (${got}/${#ak3[@]}, ${failed} failed)" >&2
+        got=$(find release-assets -maxdepth 1 -type d \( -name '*-AnyKernel3' -o -name '*-BootImages' \) | wc -l)
+        echo "Kernel artifacts expected: ${#artifacts[@]}, downloaded: ${got}, failed: ${failed}"
+        if [[ "$failed" -ne 0 || "$got" -ne "${#artifacts[@]}" ]]; then
+          echo "ERROR: incomplete artifact set (${got}/${#artifacts[@]}, ${failed} failed)" >&2
           exit 1
         fi
 
