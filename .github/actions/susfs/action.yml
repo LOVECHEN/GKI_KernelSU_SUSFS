@@ -36,7 +36,7 @@ runs:
         root_flavor: ${{ inputs.root_flavor }}
 
     - name: Adapt current SukiSU to the AndroMeld SUSFS baseline
-      if: inputs.root_flavor == 'sukisu-ultra' && inputs.susfs_commit == '9c9f19d8395693327c78df36569b44e94c187b8a'
+      if: inputs.root_flavor == 'sukisu-ultra' && (inputs.susfs_commit == '9c9f19d8395693327c78df36569b44e94c187b8a' || inputs.susfs_commit == 'acb92d4abc922cac384a207744b2db40281a7c7f')
       shell: bash
       working-directory: ${{ github.workspace }}/kernel
       run: |
