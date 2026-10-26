@@ -564,6 +564,12 @@ jobs:
           version: ${{ inputs.version }}
           page_size: ${{ inputs.page_size }}
 
+      - name: Inject KernelPatch KPM runtime
+        if: inputs.root_flavor == 'sukisu-ultra'
+        uses: ./.github/actions/kernelpatch-kpm
+        with:
+          image: ${{ github.workspace }}/AnyKernel3/Image
+
       - name: Create Boot Image Variants
         if: ${{ !inputs.build_from_stock_config }}
         uses: ./.github/actions/create-boot-images

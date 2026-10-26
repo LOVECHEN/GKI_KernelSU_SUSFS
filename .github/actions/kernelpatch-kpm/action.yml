@@ -1,0 +1,61 @@
+name: Build and inject SukiSU KernelPatch KPM runtime
+description: Build the matching KernelPatch runtime, patch the final Image, and ship a same-source smoke-test KPM
+
+inputs:
+  image:
+    description: Absolute path to the uncompressed arm64 kernel Image
+    required: true
+  commit:
+    description: Immutable SukiSU KernelPatch patch commit
+    required: false
+    default: 40ce8bea970e25fac9926a220730cf5a2331e3d9
+
+runs:
+  using: composite
+  steps:
+    - name: Build KernelPatch and test KPM
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        image="${{ inputs.image }}"
+        commit="${{ inputs.commit }}"
+        work="${RUNNER_TEMP}/sukisu-kernelpatch"
+
+        test -s "$image"
+        [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu zlib1g-dev
+
+        rm -rf "$work"
+        git clone --filter=blob:none --no-checkout \
+          https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch.git "$work"
+        git -C "$work" fetch --depth=1 origin "$commit"
+        git -C "$work" checkout --detach "$commit"
+        test "$(git -C "$work" rev-parse HEAD)" = "$commit"
+
+        make -C "$work/kernel" -j"$(nproc)" TARGET_COMPILE=aarch64-linux-gnu-
+        make -C "$work/tools" -j"$(nproc)"
+        make -C "$work/kpms/demo-hello" -j"$(nproc)" \
+          TARGET_COMPILE=aarch64-linux-gnu- KP_DIR="$work"
+
+        patched="${image}.kernelpatch"
+        "$work/tools/kptools" -p -i "$image" -k "$work/kernel/kpimg" -o "$patched"
+        test -s "$patched"
+        "$work/tools/kptools" -l -i "$patched" | tee "${RUNNER_TEMP}/kernelpatch-image-info.txt"
+
+        mv "$patched" "$image"
+        mkdir -p "${GITHUB_WORKSPACE}/AnyKernel3/KPM"
+        cp "$work/kpms/demo-hello/hello.kpm" \
+          "${GITHUB_WORKSPACE}/AnyKernel3/KPM/kpm-hello-demo.kpm"
+        cp "${RUNNER_TEMP}/kernelpatch-image-info.txt" \
+          "${GITHUB_WORKSPACE}/AnyKernel3/KPM/kernelpatch-image-info.txt"
+
+        {
+          echo "KERNELPATCH_COMMIT=$commit"
+          echo "KPM_SMOKE_TEST=kpm-hello-demo.kpm"
+        } >> "$GITHUB_ENV"
+
+        sha256sum "$image" "${GITHUB_WORKSPACE}/AnyKernel3/KPM/kpm-hello-demo.kpm"
