@@ -51,6 +51,8 @@ GitHub Actions 构建记录：[run 40251632106](https://github.com/LOVECHEN/GKI_
 
 三种 boot image 都使用 boot header v4，并写入 64 MiB boot 分区约束与 AVB hash footer。Android 12 / 5.10 额外复用 Google certified GKI boot 的 ramdisk；其他版本沿用 GKI v4 的独立 `vendor_boot` 布局。正式仓库使用 GitHub Secret 中固定的 AVB RSA-2048 密钥，fork 未配置该 Secret 时会生成仅限该次构建的临时密钥，因此仍能完成构建。
 
+现有 7 个 LTS `Image` 的 boot image 回填由 [GitHub Actions run 40291603896](https://github.com/LOVECHEN/GKI_KernelSU_SUSFS/actions/runs/40291603896) 完成：7 个矩阵 job 与最终校验表 job 全部成功，Release 新增 21 个镜像，并重新生成覆盖全部资产的 `SHA256SUMS`。
+
 ## MuMu 1.9.9 专用 Linux 4.19.195
 
 MuMu 产物使用同一 SukiSU Ultra `r2 41079` 与 UAPI `6`，但属于针对 MuMu 私有内核 ABI 构建的非 GKI 产物，不能刷入普通 GKI 设备。统一 Release 中以 `mumu` 或 `MuMu` 文件名明确隔离：
