@@ -61,7 +61,6 @@ MuMu 产物使用同一 SukiSU Ultra `r2 41079` 与 UAPI `6`，但属于针对 M
 | `Image-mumu-1.9.9-4.19.195-sukisu-kpm-susfs-full` | 最终 Full Image，内置 SukiSU 41079、KPM 与 SUSFS v2.3.0 |
 | `MuMu-1.9.9-4.19.195-SukiSU-Full-HostInstaller.zip` | macOS MuMu 宿主安装与恢复包，内含最终 Full Image |
 | `SukiSU_v4.2.1-r2_41079-release-mumu.apk` | MuMu 配套的同源 UAPI 6 管理器，应用名与包名仍保持上游原值 |
-| `Zygisk-Next-MuMu-Compat-v1.0.0.zip` | MuMu kernel-domain PID 1 所需的 Zygisk Next 兼容层，不替代官方 Zygisk Next ZIP |
 | `Image-mumu-1.9.9-4.19.195-sukisu-r2-kpm` | 历史基础 KPM Image |
 | `kernelsu-mumu-1.9.9-4.19.195-r2.ko` | 历史 SukiSU LKM |
 
