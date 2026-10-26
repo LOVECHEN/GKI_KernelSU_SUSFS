@@ -283,15 +283,17 @@ jobs:
             [susfs_commit_android15_6_6]="4a4cb1be85a4694372d3efb9420de69982eac29a"
             [susfs_commit_android16_6_12]="9c9f19d8395693327c78df36569b44e94c187b8a"
           )
-          # SukiSU-Ultra keeps its own SUSFS pin set too (same starting values).
+          # SukiSU-Ultra a864d15 adds the priority UID filter UAPI. Keep its
+          # SUSFS pins on the matching branch revisions that export those APIs;
+          # the KernelSU/BakaSU pin sets above remain independently audited.
           declare -A PIN_SUSFS_SUKISU_ULTRA=(
-            [susfs_commit_android12_5_10]="f43926dc94b8ffbf9b74321313536600f69367b1"
-            [susfs_commit_android13_5_10]="cbe3fe7b9fa599d316f68b08b06cde48218eaff5"
-            [susfs_commit_android13_5_15]="86b5b10068459dedb545dc5db46a0f0254428eda"
-            [susfs_commit_android14_5_15]="10b4f2156470338a5db2040f3d85992c285aa595"
-            [susfs_commit_android14_6_1]="b57ed1998b82c4e3a2a81cdbf11172a560979c40"
-            [susfs_commit_android15_6_6]="4a4cb1be85a4694372d3efb9420de69982eac29a"
-            [susfs_commit_android16_6_12]="9c9f19d8395693327c78df36569b44e94c187b8a"
+            [susfs_commit_android12_5_10]="5419f4ee97cc8bf7ca67a9ff207f39653d7784f4"
+            [susfs_commit_android13_5_10]="6343de00ed574720db438e7126184b34fb51a462"
+            [susfs_commit_android13_5_15]="0b5f96716cb2fc7b035dce2f06cb8a51e1b9b108"
+            [susfs_commit_android14_5_15]="195d1c10c33f7cef503ff3a915d33f297d499ee7"
+            [susfs_commit_android14_6_1]="27e0a0e42745991ba09d6f96a97bf4b83f41a012"
+            [susfs_commit_android15_6_6]="c51cd8aad3f7e2f8c48bc3bda88cc68cf7d82895"
+            [susfs_commit_android16_6_12]="3ff9fd3fac5bb01b71b2cfe96c612d469710fb74"
           )
 
           pick() { # pinned repo ref  -> pinned when verified, else latest
