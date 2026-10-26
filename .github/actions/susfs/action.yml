@@ -145,6 +145,15 @@ runs:
         sublevel: ${{ inputs.sublevel }}
         os_patch_level: ${{ inputs.os_patch_level }}
 
+    - name: Adapt pre-rebase SUSFS policy ABI to SukiSU 41087
+      if: inputs.root_flavor == 'sukisu-ultra' && inputs.version == 'android16-6.12' && inputs.sublevel == '74'
+      shell: bash
+      working-directory: ${{ github.workspace }}/kernel
+      run: |
+        set -euo pipefail
+        python3 "${{ github.action_path }}/adapt_sukisu_61274_policy_abi.py" \
+          common SukiSU-Ultra/kernel
+
     - name: Revert SUSFS Fake Patches
       uses: ./.github/actions/susfs-revert-patches
       with:

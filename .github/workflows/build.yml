@@ -381,7 +381,8 @@ jobs:
                 # also forward decls (same prefix, same sed covers them)
                 echo "[+] Stripped static from $f"
               fi
-            done
+            done < <(find "$GITHUB_WORKSPACE/kernel" -type f \
+              -path '*/kernel/feature/selinux_hide.c' -print)
           else
             echo "[-] KVER $KVER < 6.6"
           fi
