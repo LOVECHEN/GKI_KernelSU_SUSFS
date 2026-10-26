@@ -121,17 +121,25 @@ if priority_dispatch in dispatch:
     dispatch_path.write_text(dispatch)
     print("Removed unavailable SUSFS priority-filter command")
 
-# SukiSU 41087 declares user_arg_null_ptr() as returning a pointer but passes
-# it to ksu_sulog_capture(), whose argv argument is a struct value.
+# SukiSU 41087 has two CONFIG_KSU_SUSFS-selected ksu_sulog_capture()
+# signatures: SUSFS takes a pointer, while the non-SUSFS path takes a value.
+# Its unconditional pointer macro therefore cannot compile both profiles.
 sulog_event_path = sukisu / "sulog/event.c"
 sulog_event = sulog_event_path.read_text()
 bad_user_arg_null = "#define USER_ARG_NULL user_arg_null_ptr()"
-if bad_user_arg_null in sulog_event:
+conditional_user_arg_null = """#ifdef CONFIG_KSU_SUSFS
+    #define USER_ARG_NULL user_arg_null_ptr()
+    #else
+    #define USER_ARG_NULL (*user_arg_null_ptr())
+    #endif"""
+if conditional_user_arg_null in sulog_event:
+    print("SukiSU sulog null argv is already conditional")
+elif bad_user_arg_null in sulog_event:
     sulog_event = replace_once(
         sulog_event,
         bad_user_arg_null,
-        "#define USER_ARG_NULL (*user_arg_null_ptr())",
-        "SukiSU sulog null argv value",
+        conditional_user_arg_null,
+        "SukiSU sulog conditional null argv",
     )
     sulog_event_path.write_text(sulog_event)
-    print("Dereferenced the SukiSU sulog null argv value")
+    print("Selected the SukiSU sulog null argv form by CONFIG_KSU_SUSFS")
