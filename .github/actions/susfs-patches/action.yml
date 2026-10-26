@@ -170,6 +170,15 @@ runs:
           mapfile -t REJECTS < <(find . -type f -name '*.rej')
           TASK_MMU_REJECT="./fs/proc/task_mmu.c.rej"
           if [[ "${{ inputs.version }}" == "android16-6.12" \
+                && "${#REJECTS[@]}" -eq 2 \
+                && " ${REJECTS[*]} " == *" ./fs/exec.c.rej "* \
+                && " ${REJECTS[*]} " == *" ./fs/proc/task_mmu.c.rej "* \
+                && "$(grep -c '^+#include <linux/susfs_def.h>' ./fs/exec.c.rej)" -eq 1 \
+                && "$(grep -c 'SUSFS_IS_INODE_SUS_MAP' ./fs/proc/task_mmu.c.rej)" -eq 1 ]]; then
+            python3 "${{ github.action_path }}/fix_612_74_pre_rebase.py" .
+            rm -f ./fs/exec.c.rej ./fs/proc/task_mmu.c.rej
+            echo "Applied pre-6.12.92 SUSFS compatibility for Android 16 6.12.74."
+          elif [[ "${{ inputs.version }}" == "android16-6.12" \
                 && "${#REJECTS[@]}" -eq 1 \
                 && "${REJECTS[0]}" == "$TASK_MMU_REJECT" \
                 && "$(grep -c 'goto bypass_orig_flow' "$TASK_MMU_REJECT")" -eq 1 \
