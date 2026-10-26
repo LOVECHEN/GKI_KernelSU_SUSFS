@@ -252,11 +252,11 @@ jobs:
           # `fake_state` and will fail to link with latest BakaSU; 6.6/6.12 are
           # unaffected. Watch those 5 families for build failures.
           PIN_BAKASU="dac2d186406a0d2b0ce3c67cad5a1fa1adbf9f4d"
-          # SukiSU-Ultra v4.2.1-r2 kernel snapshot used by the 41079 manager.
-          # Keep this independent from the userspace pin below: the kernel-side
-          # builtin branch and the complete manager source live at different SHAs.
-          PIN_SUKISU_ULTRA="a864d15ab8984c15bf585fb9e4dfbc6ccc8aaee1"
-          PIN_SUKISU_ULTRA_MANAGER="5b4835bc20a528fd06b2a6c6571a35f9b61cff42"
+          # SukiSU-Ultra v4.2.1-r2 / 41087 paired snapshots. The builtin pin
+          # contains the unified KernelPatch bridge; the manager pin is the
+          # matching main-branch userspace build. Keep the two SHAs separate.
+          PIN_SUKISU_ULTRA="6397fcb5d96e8f4953c71e02c73f8c6800541bff"
+          PIN_SUKISU_ULTRA_MANAGER="608040a7028a0b4a709f3891bd3286ce236c7ba7"
           # FinaSU: susfs-integrated fork of the tiann restructure; pin tracks
           # the susfs4ksu v2.3 ABI era its supercall dispatch is written against.
           # master tip 3f06a69d (2026-10-21, manager install-page animation;
@@ -283,9 +283,8 @@ jobs:
             [susfs_commit_android15_6_6]="4a4cb1be85a4694372d3efb9420de69982eac29a"
             [susfs_commit_android16_6_12]="9c9f19d8395693327c78df36569b44e94c187b8a"
           )
-          # SukiSU-Ultra a864d15 adds the priority UID filter UAPI. Keep its
-          # SUSFS pins on the matching branch revisions that export those APIs;
-          # the KernelSU/BakaSU pin sets above remain independently audited.
+          # SukiSU-Ultra keeps its own SUSFS pins on branch revisions that
+          # export the required APIs; the other root pin sets remain separate.
           declare -A PIN_SUSFS_SUKISU_ULTRA=(
             [susfs_commit_android12_5_10]="5419f4ee97cc8bf7ca67a9ff207f39653d7784f4"
             [susfs_commit_android13_5_10]="6343de00ed574720db438e7126184b34fb51a462"
