@@ -15,6 +15,53 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
 kernel = Path(sys.argv[1])
 sukisu = Path(sys.argv[2])
 
+# Linux 6.12 sizes its static-call LSM tables from the in-tree LSM Kconfig
+# symbols. SukiSU registers one more LSM at init time, so a kernel with the
+# stock Android list (including BPF LSM) otherwise panics with "Too many LSMs
+# registered" before userspace starts. Reserve the SukiSU slot explicitly;
+# this keeps BPF LSM enabled instead of weakening the Full feature profile.
+lsm_count_path = kernel / "include/linux/lsm_count.h"
+if lsm_count_path.exists():
+    lsm_count = lsm_count_path.read_text()
+    ksu_counter = """#if IS_ENABLED(CONFIG_KSU)
+#define KSU_ENABLED 1,
+#else
+#define KSU_ENABLED
+#endif
+
+"""
+    anchor = """#if IS_ENABLED(CONFIG_SECURITY_SELINUX)
+#define SELINUX_ENABLED 1,
+#else
+#define SELINUX_ENABLED
+#endif
+
+"""
+    count_anchor = """\t\tCAPABILITIES_ENABLED\t\\
+\t\tSELINUX_ENABLED\t\t\\
+"""
+    count_with_ksu = """\t\tCAPABILITIES_ENABLED\t\\
+\t\tKSU_ENABLED\t\t\\
+\t\tSELINUX_ENABLED\t\t\\
+"""
+    if "#define KSU_ENABLED" in lsm_count:
+        print("Kernel LSM static-call tables already reserve a SukiSU slot")
+    else:
+        lsm_count = replace_once(
+            lsm_count,
+            anchor,
+            ksu_counter + anchor,
+            "KernelSU LSM counter declaration",
+        )
+        lsm_count = replace_once(
+            lsm_count,
+            count_anchor,
+            count_with_ksu,
+            "KernelSU LSM counter inclusion",
+        )
+        lsm_count_path.write_text(lsm_count)
+        print("Reserved a static-call LSM slot for SukiSU")
+
 throne_tracker_path = sukisu / "manager/throne_tracker.c"
 throne_tracker = throne_tracker_path.read_text()
 malformed_initializer = ".depth = pos->depth }\n"
