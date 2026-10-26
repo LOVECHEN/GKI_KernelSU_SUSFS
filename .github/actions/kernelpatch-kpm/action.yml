@@ -36,10 +36,18 @@ runs:
         git -C "$work" checkout --detach "$commit"
         test "$(git -C "$work" rev-parse HEAD)" = "$commit"
 
+        # Ubuntu's aarch64-linux-gnu toolchain enables stack protection by
+        # default, but kpimg is a freestanding image without libssp symbols.
+        grep -q '^CFLAGS += -Wall -fno-builtin ' "$work/kernel/Makefile"
+        sed -i \
+          's/^CFLAGS += -Wall -fno-builtin /CFLAGS += -Wall -fno-builtin -fno-stack-protector /' \
+          "$work/kernel/Makefile"
+
         make -C "$work/kernel" -j"$(nproc)" TARGET_COMPILE=aarch64-linux-gnu-
         make -C "$work/tools" -j"$(nproc)"
         make -C "$work/kpms/demo-hello" -j"$(nproc)" \
-          TARGET_COMPILE=aarch64-linux-gnu- KP_DIR="$work"
+          TARGET_COMPILE=aarch64-linux-gnu- KP_DIR="$work" \
+          CFLAGS=-fno-stack-protector
 
         patched="${image}.kernelpatch"
         "$work/tools/kptools" -p -i "$image" -k "$work/kernel/kpimg" -o "$patched"
